@@ -11,9 +11,9 @@ export default function App() {
   const [screen, setScreen] = useState<Screen | null>(null);
 
   useEffect(() => {
-    AsyncStorage.getItem("mobileToken").then((token) => {
-      setScreen(token ? "home" : "login");
-    });
+    AsyncStorage.getItem("mobileToken")
+      .then((token) => setScreen(token ? "home" : "login"))
+      .catch(() => setScreen("login"));
   }, []);
 
   if (screen === null) {
