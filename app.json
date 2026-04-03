@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "merttur-driver",
-    "slug": "merttur-driver",
+    "name": "TakerTakip",
+    "slug": "tekertakip-driver",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -10,21 +10,32 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#1B2437"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "com.tekertakip.driver"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#1B2437"
       },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "package": "com.tekertakip.driver",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    }
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "TakerTakip fiş fotoğrafı çekmek için kameraya erişim istiyor.",
+          "cameraPermission": "TakerTakip fiş fotoğrafı çekmek için kameraya erişim istiyor."
+        }
+      ]
+    ]
   }
 }
