@@ -92,7 +92,7 @@ export default function LoginScreen({ onLogin }: Props) {
                 style={styles.input}
                 value={name}
                 onChangeText={setName}
-                placeholder="Ünal Şemsi"
+                placeholder="mert veya Mert Yıldırım"
                 placeholderTextColor="#94a3b8"
                 autoCapitalize="words"
                 autoCorrect={false}
