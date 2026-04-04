@@ -23,12 +23,13 @@ type Props = {
 
 export default function FuelEntryScreen({ onBack, onSuccess }: Props) {
   const [receipt, setReceipt] = useState<{ uri: string } | null>(null);
+  const [parsing, setParsing] = useState(false);
   const [form, setForm] = useState({
     odometer: "",
     liters: "",
     pricePerLiter: "",
     totalAmount: "",
-    station: "Erkan Pamuk Çırçır",
+    station: "",
     paymentType: "veresiye",
     notes: "",
   });
@@ -37,13 +38,11 @@ export default function FuelEntryScreen({ onBack, onSuccess }: Props) {
   function set(field: string, value: string) {
     setForm((prev) => {
       const next = { ...prev, [field]: value };
-      // litre × fiyat → toplam
       if (field === "liters" || field === "pricePerLiter") {
         const l = parseFloat(field === "liters" ? value : prev.liters);
         const p = parseFloat(field === "pricePerLiter" ? value : prev.pricePerLiter);
         if (!isNaN(l) && !isNaN(p)) next.totalAmount = (l * p).toFixed(2);
       }
-      // toplam ÷ litre → fiyat
       if (field === "totalAmount" && next.liters) {
         const l = parseFloat(next.liters);
         const t = parseFloat(value);
@@ -66,11 +65,47 @@ export default function FuelEntryScreen({ onBack, onSuccess }: Props) {
 
     const result =
       source === "camera"
-        ? await ImagePicker.launchCameraAsync({ quality: 0.7, base64: false })
-        : await ImagePicker.launchImageLibraryAsync({ quality: 0.7, mediaTypes: ImagePicker.MediaTypeOptions.Images });
+        ? await ImagePicker.launchCameraAsync({ quality: 0.8, base64: false })
+        : await ImagePicker.launchImageLibraryAsync({ quality: 0.8, mediaTypes: ImagePicker.MediaTypeOptions.Images });
 
     if (!result.canceled && result.assets[0]) {
-      setReceipt({ uri: result.assets[0].uri });
+      const uri = result.assets[0].uri;
+      setReceipt({ uri });
+      await uploadAndParse(uri);
+    }
+  }
+
+  async function uploadAndParse(uri: string) {
+    setParsing(true);
+    try {
+      // 1. Fotoğrafı yükle
+      const formData = new FormData();
+      formData.append("file", { uri, name: `receipt_${Date.now()}.jpg`, type: "image/jpeg" } as any);
+      const uploadRes = await authFetchMultipart("/api/mobile/upload", formData);
+      if (!uploadRes.ok) return;
+      const { url: photoUrl } = await uploadRes.json();
+
+      // 2. Fişi AI ile oku
+      const parseRes = await authFetch("/api/mobile/parse-receipt", {
+        method: "POST",
+        body: JSON.stringify({ photoUrl }),
+      });
+      if (!parseRes.ok) return;
+      const { parsed } = await parseRes.json();
+      if (!parsed) return;
+
+      // 3. Formu doldur
+      setForm((prev) => ({
+        ...prev,
+        liters: parsed.liters != null ? String(parsed.liters) : prev.liters,
+        totalAmount: parsed.totalAmount != null ? String(parsed.totalAmount) : prev.totalAmount,
+        pricePerLiter: parsed.pricePerLiter != null ? String(parsed.pricePerLiter) : prev.pricePerLiter,
+        station: parsed.station || prev.station,
+      }));
+    } catch {
+      // parse başarısız olsa da form manuel doldurulabilir
+    } finally {
+      setParsing(false);
     }
   }
 
@@ -82,27 +117,16 @@ export default function FuelEntryScreen({ onBack, onSuccess }: Props) {
     setLoading(true);
     try {
       let receiptPhoto: string | null = null;
-
-      // Önce fiş fotoğrafı yükle
       if (receipt) {
         const formData = new FormData();
-        const filename = `receipt_${Date.now()}.jpg`;
-        formData.append("file", { uri: receipt.uri, name: filename, type: "image/jpeg" } as any);
+        formData.append("file", { uri: receipt.uri, name: `receipt_${Date.now()}.jpg`, type: "image/jpeg" } as any);
         const uploadRes = await authFetchMultipart("/api/mobile/upload", formData);
-        if (uploadRes.ok) {
-          const uploadData = await uploadRes.json();
-          receiptPhoto = uploadData.url;
-        }
+        if (uploadRes.ok) receiptPhoto = (await uploadRes.json()).url;
       }
 
-      // Sonra yakıt kaydı
       const res = await authFetch("/api/mobile/fuel", {
         method: "POST",
-        body: JSON.stringify({
-          ...form,
-          receiptPhoto,
-          date: new Date().toISOString(),
-        }),
+        body: JSON.stringify({ ...form, receiptPhoto, date: new Date().toISOString() }),
       });
 
       if (!res.ok) {
@@ -123,11 +147,7 @@ export default function FuelEntryScreen({ onBack, onSuccess }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
-        {/* Header */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onBack} style={styles.backBtn}>
             <Text style={styles.backText}>←</Text>
@@ -141,11 +161,11 @@ export default function FuelEntryScreen({ onBack, onSuccess }: Props) {
           {/* Fiş fotoğrafı */}
           <Text style={styles.sectionLabel}>FİŞ FOTOĞRAFI</Text>
           <View style={styles.photoRow}>
-            <TouchableOpacity style={styles.photoBtn} onPress={() => pickImage("camera")}>
+            <TouchableOpacity style={styles.photoBtn} onPress={() => pickImage("camera")} disabled={parsing}>
               <Text style={styles.photoBtnIcon}>📷</Text>
               <Text style={styles.photoBtnText}>Fotoğraf Çek</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.photoBtn} onPress={() => pickImage("gallery")}>
+            <TouchableOpacity style={styles.photoBtn} onPress={() => pickImage("gallery")} disabled={parsing}>
               <Text style={styles.photoBtnIcon}>🖼️</Text>
               <Text style={styles.photoBtnText}>Galeriden Seç</Text>
             </TouchableOpacity>
@@ -154,9 +174,17 @@ export default function FuelEntryScreen({ onBack, onSuccess }: Props) {
           {receipt && (
             <View style={styles.previewWrap}>
               <Image source={{ uri: receipt.uri }} style={styles.preview} />
-              <TouchableOpacity style={styles.removePhoto} onPress={() => setReceipt(null)}>
-                <Text style={styles.removePhotoText}>✕ Kaldır</Text>
-              </TouchableOpacity>
+              {parsing && (
+                <View style={styles.parsingOverlay}>
+                  <ActivityIndicator size="large" color="#fff" />
+                  <Text style={styles.parsingText}>Fiş okunuyor...</Text>
+                </View>
+              )}
+              {!parsing && (
+                <TouchableOpacity style={styles.removePhoto} onPress={() => setReceipt(null)}>
+                  <Text style={styles.removePhotoText}>✕ Kaldır</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
 
@@ -175,7 +203,9 @@ export default function FuelEntryScreen({ onBack, onSuccess }: Props) {
           </View>
 
           {/* Yakıt bilgileri */}
-          <Text style={styles.sectionLabel}>YAKIT BİLGİSİ</Text>
+          <Text style={styles.sectionLabel}>
+            YAKIT BİLGİSİ {parsing ? "— 🤖 Okunuyor..." : form.liters ? "— ✓ Otomatik dolduruldu" : ""}
+          </Text>
           <View style={styles.row}>
             <View style={[styles.field, { flex: 1, marginRight: 8 }]}>
               <Text style={styles.fieldLabel}>Litre *</Text>
@@ -212,7 +242,6 @@ export default function FuelEntryScreen({ onBack, onSuccess }: Props) {
             />
           </View>
 
-          {/* İstasyon & Ödeme */}
           <Text style={styles.sectionLabel}>DİĞER</Text>
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>İstasyon</Text>
@@ -254,11 +283,10 @@ export default function FuelEntryScreen({ onBack, onSuccess }: Props) {
             />
           </View>
 
-          {/* Submit */}
           <TouchableOpacity
-            style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
+            style={[styles.submitBtn, (loading || parsing) && styles.submitBtnDisabled]}
             onPress={handleSubmit}
-            disabled={loading}
+            disabled={loading || parsing}
           >
             {loading ? (
               <ActivityIndicator color="#fff" />
@@ -276,14 +304,7 @@ export default function FuelEntryScreen({ onBack, onSuccess }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8fafc" },
-  header: {
-    backgroundColor: "#1B2437",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 16,
-    paddingTop: 20,
-  },
+  header: { backgroundColor: "#1B2437", flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 16, paddingTop: 20 },
   backBtn: { width: 40, height: 40, justifyContent: "center", alignItems: "center" },
   backText: { color: "#fff", fontSize: 22, fontWeight: "300" },
   title: { color: "#fff", fontSize: 18, fontWeight: "800" },
@@ -291,33 +312,18 @@ const styles = StyleSheet.create({
   scrollContent: { padding: 20 },
   sectionLabel: { fontSize: 11, fontWeight: "700", color: "#94a3b8", letterSpacing: 1.5, marginBottom: 10, marginTop: 20 },
   photoRow: { flexDirection: "row", gap: 12 },
-  photoBtn: {
-    flex: 1,
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 20,
-    alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: "#e2e8f0",
-    borderStyle: "dashed",
-  },
+  photoBtn: { flex: 1, backgroundColor: "#fff", borderRadius: 14, padding: 20, alignItems: "center", borderWidth: 1.5, borderColor: "#e2e8f0", borderStyle: "dashed" },
   photoBtnIcon: { fontSize: 28, marginBottom: 6 },
   photoBtnText: { fontSize: 13, fontWeight: "600", color: "#475569" },
   previewWrap: { marginTop: 12, borderRadius: 14, overflow: "hidden", position: "relative" },
   preview: { width: "100%", height: 200, borderRadius: 14 },
+  parsingOverlay: { position: "absolute", inset: 0, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "center", alignItems: "center", gap: 8 },
+  parsingText: { color: "#fff", fontSize: 14, fontWeight: "700" },
   removePhoto: { position: "absolute", top: 8, right: 8, backgroundColor: "rgba(0,0,0,0.55)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
   removePhotoText: { color: "#fff", fontSize: 12, fontWeight: "600" },
   field: { marginBottom: 12 },
   fieldLabel: { fontSize: 13, fontWeight: "600", color: "#475569", marginBottom: 6 },
-  input: {
-    backgroundColor: "#fff",
-    borderWidth: 1.5,
-    borderColor: "#e2e8f0",
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 16,
-    color: "#1e293b",
-  },
+  input: { backgroundColor: "#fff", borderWidth: 1.5, borderColor: "#e2e8f0", borderRadius: 12, padding: 12, fontSize: 16, color: "#1e293b" },
   inputBig: { fontSize: 20, fontWeight: "700", color: "#DC2626" },
   row: { flexDirection: "row" },
   paymentRow: { flexDirection: "row", gap: 10 },
@@ -325,13 +331,7 @@ const styles = StyleSheet.create({
   paymentOptActive: { borderColor: "#DC2626", backgroundColor: "#FEF2F2" },
   paymentOptText: { fontSize: 14, fontWeight: "600", color: "#64748b" },
   paymentOptTextActive: { color: "#DC2626" },
-  submitBtn: {
-    backgroundColor: "#DC2626",
-    borderRadius: 16,
-    padding: 18,
-    alignItems: "center",
-    marginTop: 24,
-  },
+  submitBtn: { backgroundColor: "#DC2626", borderRadius: 16, padding: 18, alignItems: "center", marginTop: 24 },
   submitBtnDisabled: { backgroundColor: "#fca5a5" },
   submitBtnText: { color: "#fff", fontSize: 17, fontWeight: "800" },
 });
