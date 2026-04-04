@@ -20,12 +20,11 @@ type Props = {
 };
 
 export default function LoginScreen({ onLogin }: Props) {
-  const [companyCode, setCompanyCode] = useState("");
-  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const canSubmit = companyCode.trim().length > 0 && name.trim().length > 0 && password.length > 0;
+  const canSubmit = username.trim().length > 0 && password.length > 0;
 
   async function handleLogin() {
     if (!canSubmit) return;
@@ -35,8 +34,7 @@ export default function LoginScreen({ onLogin }: Props) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          companyCode: companyCode.trim().toUpperCase(),
-          name: name.trim(),
+          username: username.trim(),
           password,
         }),
       });
@@ -62,7 +60,6 @@ export default function LoginScreen({ onLogin }: Props) {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          {/* Logo alanı */}
           <View style={styles.logoArea}>
             <Text style={styles.brand}>
               {"teker"}<Text style={styles.brandRed}>{"takip"}</Text>
@@ -70,31 +67,16 @@ export default function LoginScreen({ onLogin }: Props) {
             <Text style={styles.tagline}>Şöför Girişi</Text>
           </View>
 
-          {/* Form */}
           <View style={styles.card}>
             <View style={styles.field}>
-              <Text style={styles.fieldLabel}>İşletme Kodu</Text>
+              <Text style={styles.fieldLabel}>Kullanıcı Adı</Text>
               <TextInput
                 style={styles.input}
-                value={companyCode}
-                onChangeText={setCompanyCode}
-                placeholder="MT2024"
+                value={username}
+                onChangeText={setUsername}
+                placeholder="mertbudak"
                 placeholderTextColor="#94a3b8"
-                autoCapitalize="characters"
-                autoCorrect={false}
-              />
-              <Text style={styles.hint}>Yöneticinizin verdiği kod</Text>
-            </View>
-
-            <View style={styles.field}>
-              <Text style={styles.fieldLabel}>Adınız Soyadınız</Text>
-              <TextInput
-                style={styles.input}
-                value={name}
-                onChangeText={setName}
-                placeholder="mert veya Mert Yıldırım"
-                placeholderTextColor="#94a3b8"
-                autoCapitalize="words"
+                autoCapitalize="none"
                 autoCorrect={false}
               />
             </View>
@@ -159,7 +141,6 @@ const styles = StyleSheet.create({
     color: "#1e293b",
     backgroundColor: "#f8fafc",
   },
-  hint: { fontSize: 11, color: "#94a3b8", marginTop: 5 },
   loginBtn: {
     backgroundColor: "#DC2626",
     borderRadius: 14,
