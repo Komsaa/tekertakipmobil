@@ -20,9 +20,10 @@ type Driver = {
 type Props = {
   onLogout: () => void;
   onFuelEntry: () => void;
+  onAriza: () => void;
 };
 
-export default function HomeScreen({ onLogout, onFuelEntry }: Props) {
+export default function HomeScreen({ onLogout, onFuelEntry, onAriza }: Props) {
   const [driver, setDriver] = useState<Driver | null>(null);
   const [tracking, setTracking] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -135,6 +136,13 @@ export default function HomeScreen({ onLogout, onFuelEntry }: Props) {
           <Text style={styles.cardTitle}>Yakıt Girişi</Text>
           <Text style={styles.cardSub}>Fiş fotoğrafı + KM</Text>
         </TouchableOpacity>
+
+        {/* Arıza Bildirimi */}
+        <TouchableOpacity style={[styles.card, styles.cardAriza]} onPress={onAriza}>
+          <Text style={styles.cardIcon}>🔧</Text>
+          <Text style={styles.cardTitle}>Arıza Bildir</Text>
+          <Text style={styles.cardSub}>Araçtaki sorunu yöneticiye ilet</Text>
+        </TouchableOpacity>
       </View>
 
       <Text style={styles.footer}>tekertakip.com</Text>
@@ -174,6 +182,7 @@ const styles = StyleSheet.create({
   cardGps: { borderWidth: 2, borderColor: "#e2e8f0" },
   cardActive: { backgroundColor: "#052e16", borderWidth: 2, borderColor: "#16a34a" },
   cardFuel: { borderWidth: 2, borderColor: "#fecaca" },
+  cardAriza: { borderWidth: 2, borderColor: "#fed7aa" },
   cardIcon: { fontSize: 48, marginBottom: 12 },
   cardTitle: { fontSize: 20, fontWeight: "800", color: "#1e293b" },
   cardTitleActive: { color: "#fff" },

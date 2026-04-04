@@ -4,8 +4,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import LoginScreen from "./src/screens/LoginScreen";
 import HomeScreen from "./src/screens/HomeScreen";
 import FuelEntryScreen from "./src/screens/FuelEntryScreen";
+import ArizaScreen from "./src/screens/ArizaScreen";
 
-type Screen = "login" | "home" | "fuel";
+type Screen = "login" | "home" | "fuel" | "ariza";
 
 export default function App() {
   const [screen, setScreen] = useState<Screen | null>(null);
@@ -26,5 +27,6 @@ export default function App() {
 
   if (screen === "login") return <LoginScreen onLogin={() => setScreen("home")} />;
   if (screen === "fuel") return <FuelEntryScreen onBack={() => setScreen("home")} onSuccess={() => setScreen("home")} />;
-  return <HomeScreen onLogout={() => setScreen("login")} onFuelEntry={() => setScreen("fuel")} />;
+  if (screen === "ariza") return <ArizaScreen onBack={() => setScreen("home")} />;
+  return <HomeScreen onLogout={() => setScreen("login")} onFuelEntry={() => setScreen("fuel")} onAriza={() => setScreen("ariza")} />;
 }
