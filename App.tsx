@@ -5,16 +5,22 @@ import LoginScreen from "./src/screens/LoginScreen";
 import HomeScreen from "./src/screens/HomeScreen";
 import FuelEntryScreen from "./src/screens/FuelEntryScreen";
 import ArizaScreen from "./src/screens/ArizaScreen";
+import ManagerHomeScreen from "./src/screens/ManagerHomeScreen";
 
-type Screen = "login" | "home" | "fuel" | "ariza";
+type Screen = "login" | "home" | "fuel" | "ariza" | "manager";
 
 export default function App() {
   const [screen, setScreen] = useState<Screen | null>(null);
 
   useEffect(() => {
-    AsyncStorage.getItem("mobileToken")
-      .then((token) => setScreen(token ? "home" : "login"))
-      .catch(() => setScreen("login"));
+    Promise.all([
+      AsyncStorage.getItem("mobileToken"),
+      AsyncStorage.getItem("managerToken"),
+    ]).then(([driverToken, managerToken]) => {
+      if (managerToken) setScreen("manager");
+      else if (driverToken) setScreen("home");
+      else setScreen("login");
+    }).catch(() => setScreen("login"));
   }, []);
 
   if (screen === null) {
@@ -25,8 +31,14 @@ export default function App() {
     );
   }
 
-  if (screen === "login") return <LoginScreen onLogin={() => setScreen("home")} />;
+  if (screen === "login") return (
+    <LoginScreen
+      onDriverLogin={() => setScreen("home")}
+      onManagerLogin={() => setScreen("manager")}
+    />
+  );
   if (screen === "fuel") return <FuelEntryScreen onBack={() => setScreen("home")} onSuccess={() => setScreen("home")} />;
   if (screen === "ariza") return <ArizaScreen onBack={() => setScreen("home")} />;
+  if (screen === "manager") return <ManagerHomeScreen onLogout={() => setScreen("login")} />;
   return <HomeScreen onLogout={() => setScreen("login")} onFuelEntry={() => setScreen("fuel")} onAriza={() => setScreen("ariza")} />;
 }
