@@ -46,8 +46,8 @@ export default function LoginScreen({ onLogin }: Props) {
       await AsyncStorage.setItem("mobileToken", data.token);
       await AsyncStorage.setItem("driverData", JSON.stringify(data.driver));
       onLogin();
-    } catch {
-      Alert.alert("Bağlantı Hatası", "Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edin.");
+    } catch (err: any) {
+      Alert.alert("Bağlantı Hatası", String(err?.message || err) + "\n\nURL: " + API_BASE);
     } finally {
       setLoading(false);
     }
