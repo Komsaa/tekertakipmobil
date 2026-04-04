@@ -95,15 +95,19 @@ export default function FuelEntryScreen({ onBack, onSuccess }: Props) {
       if (!parsed) return;
 
       // 3. Formu doldur
-      setForm((prev) => ({
-        ...prev,
-        liters: parsed.liters != null ? String(parsed.liters) : prev.liters,
-        totalAmount: parsed.totalAmount != null ? String(parsed.totalAmount) : prev.totalAmount,
-        pricePerLiter: parsed.pricePerLiter != null ? String(parsed.pricePerLiter) : prev.pricePerLiter,
-        station: parsed.station || prev.station,
-      }));
+      if (parsed) {
+        setForm((prev) => ({
+          ...prev,
+          liters: parsed.liters != null ? String(parsed.liters) : prev.liters,
+          totalAmount: parsed.totalAmount != null ? String(parsed.totalAmount) : prev.totalAmount,
+          pricePerLiter: parsed.pricePerLiter != null ? String(parsed.pricePerLiter) : prev.pricePerLiter,
+          station: parsed.station || prev.station,
+        }));
+      } else {
+        Alert.alert("Fiş okunamadı", "Bilgileri manuel olarak girin.");
+      }
     } catch {
-      // parse başarısız olsa da form manuel doldurulabilir
+      Alert.alert("Fiş okunamadı", "Bilgileri manuel olarak girin.");
     } finally {
       setParsing(false);
     }
