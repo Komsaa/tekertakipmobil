@@ -21,9 +21,10 @@ type Props = {
   onLogout: () => void;
   onFuelEntry: () => void;
   onAriza: () => void;
+  onSefer: () => void;
 };
 
-export default function HomeScreen({ onLogout, onFuelEntry, onAriza }: Props) {
+export default function HomeScreen({ onLogout, onFuelEntry, onAriza, onSefer }: Props) {
   const [driver, setDriver] = useState<Driver | null>(null);
   const [tracking, setTracking] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -111,6 +112,13 @@ export default function HomeScreen({ onLogout, onFuelEntry, onAriza }: Props) {
 
       {/* Ana butonlar */}
       <View style={styles.content}>
+        {/* Sefer / Yoklama */}
+        <TouchableOpacity style={[styles.card, styles.cardSefer]} onPress={onSefer}>
+          <Text style={styles.cardIcon}>🚌</Text>
+          <Text style={styles.cardTitle}>Sefer Başlat</Text>
+          <Text style={styles.cardSub}>Durak durak yoklama tut</Text>
+        </TouchableOpacity>
+
         {/* GPS Takip */}
         <TouchableOpacity
           style={[styles.card, tracking ? styles.cardActive : styles.cardGps]}
@@ -179,6 +187,7 @@ const styles = StyleSheet.create({
     position: "relative",
     overflow: "hidden",
   },
+  cardSefer: { borderWidth: 2, borderColor: "#bfdbfe" },
   cardGps: { borderWidth: 2, borderColor: "#e2e8f0" },
   cardActive: { backgroundColor: "#052e16", borderWidth: 2, borderColor: "#16a34a" },
   cardFuel: { borderWidth: 2, borderColor: "#fecaca" },

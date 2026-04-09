@@ -6,8 +6,9 @@ import HomeScreen from "./src/screens/HomeScreen";
 import FuelEntryScreen from "./src/screens/FuelEntryScreen";
 import ArizaScreen from "./src/screens/ArizaScreen";
 import ManagerHomeScreen from "./src/screens/ManagerHomeScreen";
+import SeferScreen from "./src/screens/SeferScreen";
 
-type Screen = "login" | "home" | "fuel" | "ariza" | "manager";
+type Screen = "login" | "home" | "fuel" | "ariza" | "manager" | "sefer";
 
 export default function App() {
   const [screen, setScreen] = useState<Screen | null>(null);
@@ -40,5 +41,6 @@ export default function App() {
   if (screen === "fuel") return <FuelEntryScreen onBack={() => setScreen("home")} onSuccess={() => setScreen("home")} />;
   if (screen === "ariza") return <ArizaScreen onBack={() => setScreen("home")} />;
   if (screen === "manager") return <ManagerHomeScreen onLogout={() => setScreen("login")} />;
-  return <HomeScreen onLogout={() => setScreen("login")} onFuelEntry={() => setScreen("fuel")} onAriza={() => setScreen("ariza")} />;
+  if (screen === "sefer") return <SeferScreen onBack={() => setScreen("home")} />;
+  return <HomeScreen onLogout={() => setScreen("login")} onFuelEntry={() => setScreen("fuel")} onAriza={() => setScreen("ariza")} onSefer={() => setScreen("sefer")} />;
 }
