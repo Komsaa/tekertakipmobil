@@ -9,35 +9,43 @@ import { API_BASE } from "../api/config";
 type Props = {
   onDriverLogin: () => void;
   onManagerLogin: () => void;
+  onVeliLogin: () => void;
 };
 
-export default function LoginScreen({ onDriverLogin, onManagerLogin }: Props) {
-  const [role, setRole] = useState<"driver" | "manager">("driver");
+export default function LoginScreen({ onDriverLogin, onManagerLogin, onVeliLogin }: Props) {
+  const [role, setRole] = useState<"driver" | "manager" | "veli">("driver");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const canSubmit = username.trim().length > 0 && password.length > 0;
+  const canSubmit = username.trim().length > 0 && password.trim().length > 0;
 
   async function handleLogin() {
     if (!canSubmit) return;
     setLoading(true);
     try {
-      const endpoint = role === "driver" ? "/api/mobile/auth" : "/api/mobile/manager-auth";
-      const body = role === "driver"
-        ? { username: username.trim(), password }
-        : { username: username.trim(), password };
+      if (role === "veli") {
+        const res = await fetch(`${API_BASE}/api/mobile/veli-auth`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ companyCode: username.trim().toUpperCase(), parentPhone: password.trim() }),
+        });
+        const data = await res.json();
+        if (!res.ok) { Alert.alert("Giriş Hatası", data.error || "Bilgiler hatalı"); return; }
+        await AsyncStorage.setItem("veliToken", data.token);
+        await AsyncStorage.setItem("veliData", JSON.stringify({ passenger: data.passenger, stop: data.stop, route: data.route }));
+        onVeliLogin();
+        return;
+      }
 
+      const endpoint = role === "driver" ? "/api/mobile/auth" : "/api/mobile/manager-auth";
       const res = await fetch(`${API_BASE}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ username: username.trim(), password }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        Alert.alert("Giriş Hatası", data.error || "Bilgiler hatalı");
-        return;
-      }
+      if (!res.ok) { Alert.alert("Giriş Hatası", data.error || "Bilgiler hatalı"); return; }
 
       if (role === "driver") {
         await AsyncStorage.setItem("mobileToken", data.token);
@@ -72,6 +80,12 @@ export default function LoginScreen({ onDriverLogin, onManagerLogin }: Props) {
               <Text style={[styles.roleBtnText, role === "driver" && styles.roleBtnTextActive]}>🚌 Şöför</Text>
             </TouchableOpacity>
             <TouchableOpacity
+              style={[styles.roleBtn, role === "veli" && styles.roleBtnActive]}
+              onPress={() => { setRole("veli"); setUsername(""); setPassword(""); }}
+            >
+              <Text style={[styles.roleBtnText, role === "veli" && styles.roleBtnTextActive]}>👨‍👩‍👧 Veli</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
               style={[styles.roleBtn, role === "manager" && styles.roleBtnActive]}
               onPress={() => { setRole("manager"); setUsername(""); setPassword(""); }}
             >
@@ -81,28 +95,32 @@ export default function LoginScreen({ onDriverLogin, onManagerLogin }: Props) {
 
           <View style={styles.card}>
             <View style={styles.field}>
-              <Text style={styles.fieldLabel}>Kullanıcı Adı</Text>
+              <Text style={styles.fieldLabel}>{role === "veli" ? "İşletme Kodu" : "Kullanıcı Adı"}</Text>
               <TextInput
                 style={styles.input}
                 value={username}
                 onChangeText={setUsername}
-                placeholder={role === "driver" ? "mertbudak" : "admin"}
+                placeholder={role === "veli" ? "MT2024" : role === "driver" ? "mertbudak" : "admin"}
                 placeholderTextColor="#94a3b8"
-                autoCapitalize="none"
+                autoCapitalize={role === "veli" ? "characters" : "none"}
                 autoCorrect={false}
               />
             </View>
             <View style={styles.field}>
-              <Text style={styles.fieldLabel}>Şifre</Text>
+              <Text style={styles.fieldLabel}>{role === "veli" ? "Telefon Numaranız" : "Şifre"}</Text>
               <TextInput
                 style={styles.input}
                 value={password}
                 onChangeText={setPassword}
-                placeholder="••••••"
+                placeholder={role === "veli" ? "05xx..." : "••••••"}
                 placeholderTextColor="#94a3b8"
-                secureTextEntry
+                secureTextEntry={role !== "veli"}
+                keyboardType={role === "veli" ? "phone-pad" : "default"}
               />
             </View>
+            {role === "veli" && (
+              <Text style={styles.veliHint}>Telefon numaranız servis kaydında kayıtlı olmalıdır.</Text>
+            )}
 
             <TouchableOpacity
               style={[styles.loginBtn, (!canSubmit || loading) && styles.loginBtnDisabled]}
@@ -141,4 +159,5 @@ const styles = StyleSheet.create({
   loginBtnDisabled: { backgroundColor: "#fca5a5" },
   loginBtnText: { color: "#fff", fontWeight: "800", fontSize: 16, letterSpacing: 0.5 },
   footer: { textAlign: "center", color: "#334155", fontSize: 12, marginTop: 32, paddingBottom: 8 },
+  veliHint: { fontSize: 12, color: "#94a3b8", marginBottom: 8, textAlign: "center" },
 });

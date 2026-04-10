@@ -75,22 +75,29 @@ export default function SeferScreen({ onBack }: Props) {
   async function saveAndNext() {
     if (!route) return;
     const stop = route.stops[stopIndex];
-    if (stop.passengers.length > 0) {
-      setSaving(true);
-      const attendances = stop.passengers.map((p) => ({
-        passengerId: p.id,
-        status: attendance[p.id] ?? "absent",
-      }));
-      try {
-        await authFetch("/api/mobile/sefer/attendance", {
-          method: "POST",
-          body: JSON.stringify({ routeId: route.id, date: today, attendances }),
-        });
-      } catch { /* offline — devam et */ }
-      setSaving(false);
-    }
+    const isLast = stopIndex === route.stops.length - 1;
+    const nextStop = !isLast ? route.stops[stopIndex + 1] : null;
 
-    if (stopIndex < route.stops.length - 1) {
+    setSaving(true);
+    const attendances = stop.passengers.map((p) => ({
+      passengerId: p.id,
+      status: attendance[p.id] ?? "absent",
+    }));
+    try {
+      await authFetch("/api/mobile/sefer/attendance", {
+        method: "POST",
+        body: JSON.stringify({
+          routeId: route.id,
+          date: today,
+          attendances,
+          isFirst: stopIndex === 0,
+          nextStopId: nextStop?.id ?? null,
+        }),
+      });
+    } catch { /* offline — devam et */ }
+    setSaving(false);
+
+    if (!isLast) {
       setStopIndex((i) => i + 1);
     } else {
       Alert.alert("Sefer Tamamlandı", "Tüm duraklar geçildi.", [
