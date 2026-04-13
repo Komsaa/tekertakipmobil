@@ -74,7 +74,7 @@ export default function VeliHomeScreen({ onLogout }: Props) {
         name: "default", importance: Notifications.AndroidImportance.MAX,
       });
     }
-    const token = (await Notifications.getExpoPushTokenAsync()).data;
+    const token = (await Notifications.getExpoPushTokenAsync({ projectId: "a59269a7-9936-4592-8720-e20c0b305ce8" })).data;
     const veliToken = await AsyncStorage.getItem("veliToken");
     if (!veliToken) return;
     fetch(`${API_BASE}/api/mobile/veli/push-token`, {

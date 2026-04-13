@@ -7,13 +7,11 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#1B2437"
     },
-
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.tekertakip.driver",
@@ -27,7 +25,6 @@
         "NSUserNotificationsUsageDescription": "Sefer ve bildirim uyarıları almak için izin gereklidir."
       }
     },
-
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -36,17 +33,19 @@
       "package": "com.tekertakip.driver",
       "versionCode": 1,
       "permissions": [
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION",
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "RECEIVE_BOOT_COMPLETED",
-        "VIBRATE"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION",
+        "android.permission.RECORD_AUDIO"
       ]
     },
-
     "plugins": [
       [
         "expo-location",
@@ -74,11 +73,11 @@
         }
       ]
     ],
-
     "extra": {
       "eas": {
-        "projectId": "tekertakip-driver"
+        "projectId": "a59269a7-9936-4592-8720-e20c0b305ce8"
       }
-    }
+    },
+    "owner": "komsaa"
   }
 }

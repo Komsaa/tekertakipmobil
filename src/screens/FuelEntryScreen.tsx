@@ -22,7 +22,7 @@ type Props = {
 };
 
 export default function FuelEntryScreen({ onBack, onSuccess }: Props) {
-  const [receipt, setReceipt] = useState<{ uri: string } | null>(null);
+  const [receipt, setReceipt] = useState<{ uri: string; uploadedUrl?: string } | null>(null);
   const [parsing, setParsing] = useState(false);
   const [form, setForm] = useState({
     odometer: "",
@@ -66,7 +66,7 @@ export default function FuelEntryScreen({ onBack, onSuccess }: Props) {
     const result =
       source === "camera"
         ? await ImagePicker.launchCameraAsync({ quality: 0.8, base64: false })
-        : await ImagePicker.launchImageLibraryAsync({ quality: 0.8, mediaTypes: ImagePicker.MediaTypeOptions.Images });
+        : await ImagePicker.launchImageLibraryAsync({ quality: 0.8, mediaTypes: ["images"] });
 
     if (!result.canceled && result.assets[0]) {
       const uri = result.assets[0].uri;
@@ -84,6 +84,7 @@ export default function FuelEntryScreen({ onBack, onSuccess }: Props) {
       const uploadRes = await authFetchMultipart("/api/mobile/upload", formData);
       if (!uploadRes.ok) return;
       const { url: photoUrl } = await uploadRes.json();
+      setReceipt((prev) => prev ? { ...prev, uploadedUrl: photoUrl } : prev);
 
       // 2. Fişi AI ile oku
       const parseRes = await authFetch("/api/mobile/parse-receipt", {
@@ -122,10 +123,14 @@ export default function FuelEntryScreen({ onBack, onSuccess }: Props) {
     try {
       let receiptPhoto: string | null = null;
       if (receipt) {
-        const formData = new FormData();
-        formData.append("file", { uri: receipt.uri, name: `receipt_${Date.now()}.jpg`, type: "image/jpeg" } as any);
-        const uploadRes = await authFetchMultipart("/api/mobile/upload", formData);
-        if (uploadRes.ok) receiptPhoto = (await uploadRes.json()).url;
+        if (receipt.uploadedUrl) {
+          receiptPhoto = receipt.uploadedUrl; // parse sırasında zaten yüklendi
+        } else {
+          const formData = new FormData();
+          formData.append("file", { uri: receipt.uri, name: `receipt_${Date.now()}.jpg`, type: "image/jpeg" } as any);
+          const uploadRes = await authFetchMultipart("/api/mobile/upload", formData);
+          if (uploadRes.ok) receiptPhoto = (await uploadRes.json()).url;
+        }
       }
 
       const res = await authFetch("/api/mobile/fuel", {
