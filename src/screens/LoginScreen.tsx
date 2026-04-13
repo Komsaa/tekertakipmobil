@@ -28,10 +28,10 @@ export default function LoginScreen({ onDriverLogin, onManagerLogin, onVeliLogin
         const res = await fetch(`${API_BASE}/api/mobile/veli-auth`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ companyCode: username.trim().toUpperCase(), parentPhone: password.trim() }),
+          body: JSON.stringify({ username: username.trim().toLowerCase(), password: password.trim() }),
         });
         const data = await res.json();
-        if (!res.ok) { Alert.alert("Giriş Hatası", data.error || "Bilgiler hatalı"); return; }
+        if (!res.ok) { Alert.alert("Giriş Hatası", data.error || "Kullanıcı adı veya şifre hatalı"); return; }
         await AsyncStorage.setItem("veliToken", data.token);
         await AsyncStorage.setItem("veliData", JSON.stringify({ passenger: data.passenger, stop: data.stop, route: data.route }));
         onVeliLogin();
@@ -95,31 +95,31 @@ export default function LoginScreen({ onDriverLogin, onManagerLogin, onVeliLogin
 
           <View style={styles.card}>
             <View style={styles.field}>
-              <Text style={styles.fieldLabel}>{role === "veli" ? "İşletme Kodu" : "Kullanıcı Adı"}</Text>
+              <Text style={styles.fieldLabel}>Kullanıcı Adı</Text>
               <TextInput
                 style={styles.input}
                 value={username}
                 onChangeText={setUsername}
-                placeholder={role === "veli" ? "MT2024" : role === "driver" ? "mertbudak" : "admin"}
+                placeholder={role === "driver" ? "mertbudak" : role === "veli" ? "ahmetyilmaz" : "admin"}
                 placeholderTextColor="#94a3b8"
-                autoCapitalize={role === "veli" ? "characters" : "none"}
+                autoCapitalize="none"
                 autoCorrect={false}
               />
             </View>
             <View style={styles.field}>
-              <Text style={styles.fieldLabel}>{role === "veli" ? "Telefon Numaranız" : "Şifre"}</Text>
+              <Text style={styles.fieldLabel}>{role === "driver" ? "PIN" : "Şifre"}</Text>
               <TextInput
                 style={styles.input}
                 value={password}
                 onChangeText={setPassword}
-                placeholder={role === "veli" ? "05xx..." : "••••••"}
+                placeholder="••••••"
                 placeholderTextColor="#94a3b8"
-                secureTextEntry={role !== "veli"}
-                keyboardType={role === "veli" ? "phone-pad" : "default"}
+                secureTextEntry
+                keyboardType={role === "driver" ? "number-pad" : "default"}
               />
             </View>
             {role === "veli" && (
-              <Text style={styles.veliHint}>Telefon numaranız servis kaydında kayıtlı olmalıdır.</Text>
+              <Text style={styles.veliHint}>WhatsApp'tan aldığınız kullanıcı adı ve şifreyi girin.</Text>
             )}
 
             <TouchableOpacity

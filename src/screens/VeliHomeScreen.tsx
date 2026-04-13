@@ -29,6 +29,10 @@ type Status = {
   seferStarted: boolean;
   statusMessage: string;
   statusType: "waiting" | "enroute" | "arrived" | "passed";
+  showLocation: boolean;
+  minutesToPickup: number | null;
+  missedBoarding: boolean;
+  myAttendanceStatus: "boarded" | "absent" | null;
 };
 
 type Props = { onLogout: () => void };
@@ -114,7 +118,7 @@ export default function VeliHomeScreen({ onLogout }: Props) {
     );
   }
 
-  const { statusType, statusMessage } = status;
+  const { statusType, statusMessage, showLocation, minutesToPickup, missedBoarding, myAttendanceStatus } = status;
 
   const statusColors = {
     waiting:  { bg: "#1e293b", text: "#94a3b8", icon: "🕐" },
@@ -123,7 +127,6 @@ export default function VeliHomeScreen({ onLogout }: Props) {
     passed:   { bg: "#374151", text: "#9ca3af", icon: "✓" },
   };
   const sc = statusColors[statusType];
-
   const stopsAway = status.myStop.order - 1 - status.currentStopIndex;
 
   return (
@@ -140,16 +143,47 @@ export default function VeliHomeScreen({ onLogout }: Props) {
       </View>
 
       <View style={styles.content}>
+
+        {/* 🔴 Durak geçildi, binmedi uyarısı */}
+        {missedBoarding && (
+          <View style={styles.alertBanner}>
+            <Text style={styles.alertIcon}>🚨</Text>
+            <Text style={styles.alertText}>Durağınız geçildi — {status.passenger.name} servise binmedi!</Text>
+          </View>
+        )}
+
+        {/* ✅ Bindi bildirimi */}
+        {myAttendanceStatus === "boarded" && (
+          <View style={styles.boardedBanner}>
+            <Text style={styles.alertIcon}>✅</Text>
+            <Text style={styles.boardedText}>{status.passenger.name} servise bindi</Text>
+          </View>
+        )}
+
         {/* Ana durum kartı */}
         <View style={[styles.statusCard, { backgroundColor: sc.bg }]}>
           <Text style={styles.statusIcon}>{sc.icon}</Text>
           <Text style={[styles.statusMessage, { color: sc.text }]}>{statusMessage}</Text>
-          {statusType === "enroute" && stopsAway > 0 && (
+          {minutesToPickup !== null && minutesToPickup > 0 && (
+            <Text style={[styles.statusSub, { color: sc.text }]}>
+              ≈ {minutesToPickup} dakika içinde durağınızda
+            </Text>
+          )}
+          {statusType === "enroute" && stopsAway > 0 && minutesToPickup === null && (
             <Text style={[styles.statusSub, { color: sc.text }]}>
               {stopsAway} durak sonra sizin durak
             </Text>
           )}
         </View>
+
+        {/* Konum penceresi kapalıysa bilgi */}
+        {!showLocation && (
+          <View style={styles.noLocationCard}>
+            <Text style={styles.noLocationText}>
+              🕐 Servis saatine yakın konum gösterimi aktif olacak
+            </Text>
+          </View>
+        )}
 
         {/* Durak bilgisi */}
         <View style={styles.infoCard}>
@@ -185,27 +219,26 @@ export default function VeliHomeScreen({ onLogout }: Props) {
                   styles.progressDot,
                   done && styles.dotDone,
                   current && styles.dotCurrent,
-                  isMyStop && styles.dotMine,
+                  isMyStop && (missedBoarding ? styles.dotMissed : styles.dotMine),
                 ]} />
               );
             })}
           </View>
           <View style={styles.progressLabels}>
             <Text style={styles.progressLabelText}>Başlangıç</Text>
-            <Text style={[styles.progressLabelText, { color: "#DC2626", fontWeight: "700" }]}>
-              ★ Durağınız ({status.myStop.order}. durak)
+            <Text style={[styles.progressLabelText, { color: missedBoarding ? "#DC2626" : "#DC2626", fontWeight: "700" }]}>
+              {missedBoarding ? "⚠ " : "★ "}Durağınız ({status.myStop.order}. durak)
             </Text>
             <Text style={styles.progressLabelText}>Bitiş</Text>
           </View>
         </View>
 
-        {/* Canlı takip butonu */}
         <TouchableOpacity style={styles.refreshBtn} onPress={fetchStatus}>
           <Text style={styles.refreshText}>↻ Yenile</Text>
         </TouchableOpacity>
 
-        {status.driverLocation?.isTracking && (
-          <Text style={styles.trackingNote}>● GPS takibi aktif — her 30sn güncelleniyor</Text>
+        {status.driverLocation?.isTracking && showLocation && (
+          <Text style={styles.trackingNote}>● GPS takibi aktif</Text>
         )}
       </View>
     </SafeAreaView>
@@ -283,6 +316,29 @@ const styles = StyleSheet.create({
   refreshText: { color: "#fff", fontWeight: "700", fontSize: 15 },
 
   trackingNote: { textAlign: "center", color: "#16a34a", fontSize: 12 },
+
+  alertBanner: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    backgroundColor: "#FEF2F2", borderWidth: 1.5, borderColor: "#DC2626",
+    borderRadius: 14, padding: 14,
+  },
+  alertIcon: { fontSize: 20 },
+  alertText: { flex: 1, color: "#DC2626", fontWeight: "700", fontSize: 14, lineHeight: 20 },
+
+  boardedBanner: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    backgroundColor: "#f0fdf4", borderWidth: 1.5, borderColor: "#16a34a",
+    borderRadius: 14, padding: 14,
+  },
+  boardedText: { flex: 1, color: "#15803d", fontWeight: "700", fontSize: 14 },
+
+  noLocationCard: {
+    backgroundColor: "#f8fafc", borderWidth: 1, borderColor: "#e2e8f0",
+    borderRadius: 12, padding: 12, alignItems: "center",
+  },
+  noLocationText: { color: "#64748b", fontSize: 13, textAlign: "center" },
+
+  dotMissed: { backgroundColor: "#DC2626" },
 
   retryBtn: { backgroundColor: "#1B2437", paddingHorizontal: 24, paddingVertical: 12, borderRadius: 10 },
 });

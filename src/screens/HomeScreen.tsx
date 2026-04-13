@@ -60,7 +60,7 @@ export default function HomeScreen({ onLogout, onFuelEntry, onAriza, onSefer }: 
     }
     setTracking(true);
     await sendLocation(); // hemen bir kez gönder
-    intervalRef.current = setInterval(sendLocation, 30_000);
+    intervalRef.current = setInterval(sendLocation, 5_000);
   }
 
   async function stopTracking() {
@@ -129,7 +129,7 @@ export default function HomeScreen({ onLogout, onFuelEntry, onAriza, onSefer }: 
             {tracking ? "Konum Takibi Aktif" : "Konum Takibini Başlat"}
           </Text>
           <Text style={[styles.cardSub, tracking && styles.cardSubActive]}>
-            {tracking ? "Her 30 saniyede güncelleniyor · Durdurmak için dokun" : "Güzergah başlamadan önce aç"}
+            {tracking ? "Her 5 saniyede güncelleniyor · Durdurmak için dokun" : "Güzergah başlamadan önce aç"}
           </Text>
           {tracking && (
             <View style={styles.activeDot}>
