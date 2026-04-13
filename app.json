@@ -1,41 +1,84 @@
 {
   "expo": {
-    "name": "TakerTakip",
+    "name": "TékerTakip Şöför",
     "slug": "tekertakip-driver",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#1B2437"
     },
+
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.tekertakip.driver"
+      "bundleIdentifier": "com.tekertakip.driver",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Servis güzergahında canlı konum takibi için konumunuza ihtiyaç duyulur.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Sefer sırasında arka planda konum paylaşmak için konumunuza her zaman erişim gereklidir.",
+        "NSLocationAlwaysUsageDescription": "Sefer sırasında arka planda konum paylaşmak için konumunuza her zaman erişim gereklidir.",
+        "NSCameraUsageDescription": "Yakıt fişi ve arıza fotoğrafı çekmek için kameraya erişim gereklidir.",
+        "NSPhotoLibraryUsageDescription": "Fotoğraf yüklemek için fotoğraf kitaplığına erişim gereklidir.",
+        "NSUserNotificationsUsageDescription": "Sefer ve bildirim uyarıları almak için izin gereklidir."
+      }
     },
+
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1B2437"
       },
       "package": "com.tekertakip.driver",
+      "versionCode": 1,
       "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "WRITE_EXTERNAL_STORAGE",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
       ]
     },
+
     "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "TékerTakip, sefer sırasında arka planda konumunuzu paylaşmak için her zaman konum erişimi ister.",
+          "locationAlwaysPermission": "TékerTakip, sefer sırasında arka planda konumunuzu paylaşmak için her zaman konum erişimi ister.",
+          "locationWhenInUsePermission": "TékerTakip, güzergah takibi için konumunuza erişim ister.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#DC2626",
+          "sounds": []
+        }
+      ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "TakerTakip fiş fotoğrafı çekmek için kameraya erişim istiyor.",
-          "cameraPermission": "TakerTakip fiş fotoğrafı çekmek için kameraya erişim istiyor."
+          "photosPermission": "TékerTakip, fotoğraf yüklemek için fotoğraf kitaplığına erişim ister.",
+          "cameraPermission": "TékerTakip, yakıt fişi ve arıza fotoğrafı çekmek için kameraya erişim ister."
         }
       ]
-    ]
+    ],
+
+    "extra": {
+      "eas": {
+        "projectId": "tekertakip-driver"
+      }
+    }
   }
 }
