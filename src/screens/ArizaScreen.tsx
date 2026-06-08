@@ -14,11 +14,18 @@ export default function ArizaScreen({ onBack }: Props) {
   const [photo, setPhoto] = useState<{ uri: string } | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function pickPhoto() {
-    const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) { Alert.alert("İzin gerekli"); return; }
-    const result = await ImagePicker.launchCameraAsync({ quality: 0.7 });
-    if (!result.canceled && result.assets[0]) setPhoto({ uri: result.assets[0].uri });
+  async function pickPhoto(source: "camera" | "gallery") {
+    if (source === "camera") {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) { Alert.alert("İzin gerekli", "Kamera erişimi için izin verin."); return; }
+      const result = await ImagePicker.launchCameraAsync({ quality: 0.7 });
+      if (!result.canceled && result.assets[0]) setPhoto({ uri: result.assets[0].uri });
+    } else {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) { Alert.alert("İzin gerekli", "Fotoğraf kitaplığı erişimi için izin verin."); return; }
+      const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.7, mediaTypes: ["images"] });
+      if (!result.canceled && result.assets[0]) setPhoto({ uri: result.assets[0].uri });
+    }
   }
 
   async function handleSubmit() {
@@ -70,9 +77,20 @@ export default function ArizaScreen({ onBack }: Props) {
           />
 
           <Text style={s.label}>FOTOĞRAF (opsiyonel)</Text>
-          <TouchableOpacity style={s.photoBtn} onPress={pickPhoto}>
-            <Text style={s.photoBtnText}>{photo ? "✓ Fotoğraf eklendi — değiştir" : "📷 Fotoğraf Çek"}</Text>
-          </TouchableOpacity>
+          {photo ? (
+            <TouchableOpacity style={s.photoBtn} onPress={() => pickPhoto("camera")}>
+              <Text style={s.photoBtnText}>✓ Fotoğraf eklendi — değiştir</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={s.photoRow}>
+              <TouchableOpacity style={[s.photoBtn, { flex: 1 }]} onPress={() => pickPhoto("camera")}>
+                <Text style={s.photoBtnText}>📷 Kamera</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[s.photoBtn, { flex: 1 }]} onPress={() => pickPhoto("gallery")}>
+                <Text style={s.photoBtnText}>🖼️ Galeri</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           <TouchableOpacity
             style={[s.submitBtn, (!description.trim() || loading) && s.submitBtnDisabled]}
@@ -96,6 +114,7 @@ const s = StyleSheet.create({
   content: { padding: 24, gap: 12 },
   label: { fontSize: 11, fontWeight: "700", color: "#94a3b8", letterSpacing: 1.5, marginTop: 8 },
   input: { backgroundColor: "#fff", borderWidth: 1.5, borderColor: "#e2e8f0", borderRadius: 12, padding: 14, fontSize: 16, color: "#1e293b" },
+  photoRow: { flexDirection: "row", gap: 10 },
   photoBtn: { backgroundColor: "#fff", borderWidth: 1.5, borderColor: "#e2e8f0", borderRadius: 12, padding: 16, alignItems: "center" },
   photoBtnText: { color: "#475569", fontWeight: "600", fontSize: 15 },
   submitBtn: { backgroundColor: "#DC2626", borderRadius: 14, padding: 18, alignItems: "center", marginTop: 16 },

@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet, SafeAreaView,
-  ActivityIndicator, Alert, Platform,
+  ActivityIndicator, Alert, Platform, Modal,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { WebView } from "react-native-webview";
+import { LogoIcon } from "../components/Logo";
+import { getSecure, deleteSecureMany } from "../lib/secureStorage";
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import { authFetch } from "../api/client";
@@ -28,7 +30,7 @@ type Status = {
   driverLocation: { lat: number | null; lng: number | null; isTracking: boolean } | null;
   seferStarted: boolean;
   statusMessage: string;
-  statusType: "waiting" | "enroute" | "arrived" | "passed";
+  statusType: "waiting" | "enroute" | "arrived" | "passed" | "missed";
   showLocation: boolean;
   minutesToPickup: number | null;
   missedBoarding: boolean;
@@ -40,11 +42,13 @@ type Props = { onLogout: () => void };
 export default function VeliHomeScreen({ onLogout }: Props) {
   const [status, setStatus] = useState<Status | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mapVisible, setMapVisible] = useState(false);
+  const [veliToken, setVeliToken] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchStatus = useCallback(async () => {
     try {
-      const token = await AsyncStorage.getItem("veliToken");
+      const token = await getSecure("veliToken");
       if (!token) return;
       const res = await fetch(`${API_BASE}/api/mobile/veli/status`, {
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -57,6 +61,7 @@ export default function VeliHomeScreen({ onLogout }: Props) {
   useEffect(() => {
     fetchStatus();
     intervalRef.current = setInterval(fetchStatus, 30_000);
+    getSecure("veliToken").then(setVeliToken);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [fetchStatus]);
 
@@ -75,7 +80,7 @@ export default function VeliHomeScreen({ onLogout }: Props) {
       });
     }
     const token = (await Notifications.getExpoPushTokenAsync({ projectId: "a59269a7-9936-4592-8720-e20c0b305ce8" })).data;
-    const veliToken = await AsyncStorage.getItem("veliToken");
+    const veliToken = await getSecure("veliToken");
     if (!veliToken) return;
     fetch(`${API_BASE}/api/mobile/veli/push-token`, {
       method: "POST",
@@ -90,11 +95,35 @@ export default function VeliHomeScreen({ onLogout }: Props) {
       {
         text: "Çıkış Yap", style: "destructive",
         onPress: async () => {
-          await AsyncStorage.multiRemove(["veliToken", "veliData"]);
+          await deleteSecureMany(["veliToken", "veliData"]);
           onLogout();
         },
       },
     ]);
+  }
+
+  async function handleDeleteAccount() {
+    Alert.alert(
+      "Hesabı Sil",
+      "Servis takip erişiminiz silinecek. Yöneticinizden yeni giriş bilgisi almanız gerekecek. Devam edilsin mi?",
+      [
+        { text: "Vazgeç", style: "cancel" },
+        {
+          text: "Hesabı Sil", style: "destructive",
+          onPress: async () => {
+            const token = await getSecure("veliToken");
+            if (token) {
+              await fetch(`${API_BASE}/api/mobile/account/delete?role=veli`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` },
+              }).catch(() => {});
+            }
+            await deleteSecureMany(["veliToken", "veliData"]);
+            onLogout();
+          },
+        },
+      ]
+    );
   }
 
   if (loading) {
@@ -125,6 +154,7 @@ export default function VeliHomeScreen({ onLogout }: Props) {
     enroute:  { bg: "#1d4ed8", text: "#bfdbfe", icon: "🚌" },
     arrived:  { bg: "#15803d", text: "#bbf7d0", icon: "✅" },
     passed:   { bg: "#374151", text: "#9ca3af", icon: "✓" },
+    missed:   { bg: "#7f1d1d", text: "#fca5a5", icon: "🚨" },
   };
   const sc = statusColors[statusType];
   const stopsAway = status.myStop.order - 1 - status.currentStopIndex;
@@ -133,13 +163,17 @@ export default function VeliHomeScreen({ onLogout }: Props) {
     <SafeAreaView style={styles.container}>
       {/* Üst bar */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.routeName}>{status.route.name}</Text>
-          <Text style={styles.passengerName}>{status.passenger.name}</Text>
+        <View style={styles.headerTop}>
+          <View style={styles.headerBrandRow}>
+            <LogoIcon size={22} color="#fff" />
+            <Text style={styles.headerBrand}>teker<Text style={styles.headerBrandRed}>takip</Text></Text>
+          </View>
+          <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
+            <Text style={styles.logoutText}>Çıkış</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
-          <Text style={styles.logoutText}>Çıkış</Text>
-        </TouchableOpacity>
+        <Text style={styles.routeName}>{status.route.name}</Text>
+        <Text style={styles.passengerName}>{status.passenger.name}</Text>
       </View>
 
       <View style={styles.content}>
@@ -237,26 +271,58 @@ export default function VeliHomeScreen({ onLogout }: Props) {
           <Text style={styles.refreshText}>↻ Yenile</Text>
         </TouchableOpacity>
 
+        {status?.seferStarted && status?.driverLocation?.isTracking && veliToken && (
+          <TouchableOpacity style={styles.mapBtn} onPress={() => setMapVisible(true)}>
+            <Text style={styles.mapBtnText}>🗺  Canlı Haritada Gör</Text>
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity onPress={handleDeleteAccount} style={styles.deleteBtn}>
+          <Text style={styles.deleteBtnText}>Hesabı Sil</Text>
+        </TouchableOpacity>
+
         {status.driverLocation?.isTracking && showLocation && (
           <Text style={styles.trackingNote}>● GPS takibi aktif</Text>
         )}
       </View>
+
+      {/* Canlı Harita Modal */}
+      <Modal visible={mapVisible} animationType="slide" onRequestClose={() => setMapVisible(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: "#1B2437" }}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Canlı Harita</Text>
+            <TouchableOpacity onPress={() => setMapVisible(false)} style={styles.modalClose}>
+              <Text style={styles.modalCloseText}>✕ Kapat</Text>
+            </TouchableOpacity>
+          </View>
+          {veliToken && (
+            <WebView
+              source={{ uri: `${API_BASE}/sefer-harita?token=${encodeURIComponent(veliToken)}` }}
+              style={{ flex: 1 }}
+              startInLoadingState
+              renderLoading={() => (
+                <View style={styles.webviewLoading}>
+                  <ActivityIndicator size="large" color="#DC2626" />
+                </View>
+              )}
+            />
+          )}
+        </SafeAreaView>
+      </Modal>
+
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8fafc" },
-  header: {
-    backgroundColor: "#1B2437",
-    padding: 20,
-    paddingTop: 28,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-  },
-  routeName: { color: "#94a3b8", fontSize: 13, marginBottom: 2 },
-  passengerName: { color: "#fff", fontSize: 20, fontWeight: "800" },
+  header: { backgroundColor: "#1B2437", padding: 20, paddingTop: 24 },
+  headerTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+  headerBrandRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  headerBrand: { color: "#fff", fontSize: 16, fontWeight: "900", letterSpacing: 1 },
+  headerBrandRed: { color: "#DC2626" },
+  routeName: { color: "#94a3b8", fontSize: 12, marginBottom: 2 },
+  passengerName: { color: "#fff", fontSize: 22, fontWeight: "800" },
   logoutBtn: { paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: "#334155", borderRadius: 8 },
   logoutText: { color: "#94a3b8", fontSize: 13 },
 
@@ -338,7 +404,24 @@ const styles = StyleSheet.create({
   },
   noLocationText: { color: "#64748b", fontSize: 13, textAlign: "center" },
 
-  dotMissed: { backgroundColor: "#DC2626" },
+  dotMissed: { backgroundColor: "#f97316" },
 
   retryBtn: { backgroundColor: "#1B2437", paddingHorizontal: 24, paddingVertical: 12, borderRadius: 10 },
+
+  mapBtn: {
+    backgroundColor: "#16a34a", borderRadius: 12, paddingVertical: 14,
+    alignItems: "center", marginTop: 4,
+  },
+  mapBtnText: { color: "#fff", fontWeight: "800", fontSize: 15 },
+
+  modalHeader: {
+    backgroundColor: "#1B2437", flexDirection: "row", alignItems: "center",
+    justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12,
+  },
+  modalTitle: { color: "#fff", fontSize: 16, fontWeight: "800" },
+  modalClose: { paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: "#334155", borderRadius: 8 },
+  modalCloseText: { color: "#94a3b8", fontSize: 13 },
+  webviewLoading: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, justifyContent: "center", alignItems: "center", backgroundColor: "#f8fafc" },
+  deleteBtn: { alignItems: "center", paddingVertical: 12, marginTop: 4 },
+  deleteBtnText: { color: "#94a3b8", fontSize: 12, textDecorationLine: "underline" },
 });

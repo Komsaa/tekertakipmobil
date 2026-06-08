@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   SafeAreaView, Alert, ActivityIndicator, RefreshControl,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getSecure, deleteSecureMany } from "../lib/secureStorage";
 import { API_BASE } from "../api/config";
 
 type Job = { id: string; title: string; startTime: string; driver: string; plate: string; status: string };
@@ -28,18 +28,25 @@ export default function ManagerHomeScreen({ onLogout }: Props) {
   const [tab, setTab] = useState<"dashboard" | "fuel" | "reports">("dashboard");
 
   useEffect(() => {
-    AsyncStorage.getItem("managerUsername").then((u) => u && setUsername(u));
+    getSecure("managerUsername").then((u) => u && setUsername(u));
     load();
+    const interval = setInterval(load, 30000);
+    return () => clearInterval(interval);
   }, []);
+
+  async function silentLogout() {
+    await deleteSecureMany(["managerToken", "managerUsername"]);
+    onLogout();
+  }
 
   async function load() {
     try {
-      const token = await AsyncStorage.getItem("managerToken");
+      const token = await getSecure("managerToken");
       const res = await fetch(`${API_BASE}/api/mobile/manager/dashboard`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.status === 401) {
-        await handleLogout();
+        await silentLogout();
         return;
       }
       if (res.ok) setData(await res.json());
@@ -54,10 +61,7 @@ export default function ManagerHomeScreen({ onLogout }: Props) {
       { text: "İptal", style: "cancel" },
       {
         text: "Çıkış Yap", style: "destructive",
-        onPress: async () => {
-          await AsyncStorage.multiRemove(["managerToken", "managerUsername"]);
-          onLogout();
-        },
+        onPress: silentLogout,
       },
     ]);
   }

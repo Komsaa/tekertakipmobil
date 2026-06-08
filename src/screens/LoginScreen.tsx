@@ -3,8 +3,9 @@ import {
   View, Text, TextInput, TouchableOpacity, ActivityIndicator,
   StyleSheet, SafeAreaView, Alert, KeyboardAvoidingView, Platform, ScrollView,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { setSecure } from "../lib/secureStorage";
 import { API_BASE } from "../api/config";
+import { LogoIcon } from "../components/Logo";
 
 type Props = {
   onDriverLogin: () => void;
@@ -13,7 +14,6 @@ type Props = {
 };
 
 export default function LoginScreen({ onDriverLogin, onManagerLogin, onVeliLogin }: Props) {
-  const [role, setRole] = useState<"driver" | "manager" | "veli">("driver");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,40 +24,32 @@ export default function LoginScreen({ onDriverLogin, onManagerLogin, onVeliLogin
     if (!canSubmit) return;
     setLoading(true);
     try {
-      if (role === "veli") {
-        const res = await fetch(`${API_BASE}/api/mobile/veli-auth`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: username.trim().toLowerCase(), password: password.trim() }),
-        });
-        const data = await res.json();
-        if (!res.ok) { Alert.alert("Giriş Hatası", data.error || "Kullanıcı adı veya şifre hatalı"); return; }
-        await AsyncStorage.setItem("veliToken", data.token);
-        await AsyncStorage.setItem("veliData", JSON.stringify({ passenger: data.passenger, stop: data.stop, route: data.route }));
-        onVeliLogin();
+      const res = await fetch(`${API_BASE}/api/mobile/unified-auth`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: username.trim(), password: password.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        Alert.alert("Giriş Hatası", data.error || "Kullanıcı adı veya şifre hatalı");
         return;
       }
 
-      const endpoint = role === "driver" ? "/api/mobile/auth" : "/api/mobile/manager-auth";
-      const res = await fetch(`${API_BASE}${endpoint}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: username.trim(), password }),
-      });
-      const data = await res.json();
-      if (!res.ok) { Alert.alert("Giriş Hatası", data.error || "Bilgiler hatalı"); return; }
-
-      if (role === "driver") {
-        await AsyncStorage.setItem("mobileToken", data.token);
-        await AsyncStorage.setItem("driverData", JSON.stringify(data.driver));
+      if (data.role === "driver") {
+        await setSecure("mobileToken", data.token);
+        await setSecure("driverData", JSON.stringify(data.driver));
         onDriverLogin();
-      } else {
-        await AsyncStorage.setItem("managerToken", data.token);
-        await AsyncStorage.setItem("managerUsername", data.username);
+      } else if (data.role === "veli") {
+        await setSecure("veliToken", data.token);
+        await setSecure("veliData", JSON.stringify({ passenger: data.passenger, stop: data.stop, route: data.route }));
+        onVeliLogin();
+      } else if (data.role === "manager") {
+        await setSecure("managerToken", data.token);
+        await setSecure("managerUsername", data.username);
         onManagerLogin();
       }
-    } catch (err: any) {
-      Alert.alert("Bağlantı Hatası", String(err?.message || err));
+    } catch {
+      Alert.alert("Bağlantı Hatası", "Sunucuya ulaşılamadı.");
     } finally {
       setLoading(false);
     }
@@ -67,47 +59,37 @@ export default function LoginScreen({ onDriverLogin, onManagerLogin, onVeliLogin
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+
+          {/* Logo */}
           <View style={styles.logoArea}>
-            <Text style={styles.brand}>teker<Text style={styles.brandRed}>takip</Text></Text>
+            <View style={styles.logoGlow}>
+              <LogoIcon size={64} color="#fff" />
+            </View>
+            <Text style={styles.brand}>
+              teker<Text style={styles.brandRed}>takip</Text>
+            </Text>
+            <Text style={styles.tagline}>Servis Yönetim Platformu</Text>
           </View>
 
-          {/* Rol seçimi */}
-          <View style={styles.roleRow}>
-            <TouchableOpacity
-              style={[styles.roleBtn, role === "driver" && styles.roleBtnActive]}
-              onPress={() => { setRole("driver"); setUsername(""); setPassword(""); }}
-            >
-              <Text style={[styles.roleBtnText, role === "driver" && styles.roleBtnTextActive]}>🚌 Şöför</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.roleBtn, role === "veli" && styles.roleBtnActive]}
-              onPress={() => { setRole("veli"); setUsername(""); setPassword(""); }}
-            >
-              <Text style={[styles.roleBtnText, role === "veli" && styles.roleBtnTextActive]}>👨‍👩‍👧 Veli</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.roleBtn, role === "manager" && styles.roleBtnActive]}
-              onPress={() => { setRole("manager"); setUsername(""); setPassword(""); }}
-            >
-              <Text style={[styles.roleBtnText, role === "manager" && styles.roleBtnTextActive]}>👔 Yönetici</Text>
-            </TouchableOpacity>
-          </View>
-
+          {/* Form */}
           <View style={styles.card}>
+            <Text style={styles.cardTitle}>Giriş Yap</Text>
+
             <View style={styles.field}>
               <Text style={styles.fieldLabel}>Kullanıcı Adı</Text>
               <TextInput
                 style={styles.input}
                 value={username}
                 onChangeText={setUsername}
-                placeholder={role === "driver" ? "mertbudak" : role === "veli" ? "ahmetyilmaz" : "admin"}
+                placeholder="kullaniciadi"
                 placeholderTextColor="#94a3b8"
                 autoCapitalize="none"
                 autoCorrect={false}
               />
             </View>
+
             <View style={styles.field}>
-              <Text style={styles.fieldLabel}>{role === "driver" ? "PIN" : "Şifre"}</Text>
+              <Text style={styles.fieldLabel}>Şifre / PIN</Text>
               <TextInput
                 style={styles.input}
                 value={password}
@@ -115,21 +97,18 @@ export default function LoginScreen({ onDriverLogin, onManagerLogin, onVeliLogin
                 placeholder="••••••"
                 placeholderTextColor="#94a3b8"
                 secureTextEntry
-                keyboardType={role === "driver" ? "number-pad" : "default"}
               />
             </View>
-            {role === "veli" && (
-              <Text style={styles.veliHint}>WhatsApp'tan aldığınız kullanıcı adı ve şifreyi girin.</Text>
-            )}
 
             <TouchableOpacity
               style={[styles.loginBtn, (!canSubmit || loading) && styles.loginBtnDisabled]}
               onPress={handleLogin}
               disabled={!canSubmit || loading}
             >
-              {loading ? <ActivityIndicator color="#fff" /> : (
-                <Text style={styles.loginBtnText}>Giriş Yap</Text>
-              )}
+              {loading
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={styles.loginBtnText}>Giriş Yap →</Text>
+              }
             </TouchableOpacity>
           </View>
 
@@ -143,21 +122,37 @@ export default function LoginScreen({ onDriverLogin, onManagerLogin, onVeliLogin
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#1B2437" },
   scroll: { flexGrow: 1, justifyContent: "center", padding: 24 },
-  logoArea: { alignItems: "center", marginBottom: 28 },
-  brand: { fontSize: 40, fontWeight: "900", color: "#fff", letterSpacing: 2 },
+
+  logoArea: { alignItems: "center", marginBottom: 40 },
+  logoGlow: {
+    width: 100, height: 100, borderRadius: 28,
+    backgroundColor: "rgba(220,38,38,0.12)",
+    borderWidth: 1.5, borderColor: "rgba(220,38,38,0.2)",
+    alignItems: "center", justifyContent: "center", marginBottom: 16,
+  },
+  brand: { fontSize: 36, fontWeight: "900", color: "#fff", letterSpacing: 2 },
   brandRed: { color: "#DC2626" },
-  roleRow: { flexDirection: "row", gap: 10, marginBottom: 20 },
-  roleBtn: { flex: 1, paddingVertical: 12, borderRadius: 14, borderWidth: 1.5, borderColor: "#334155", alignItems: "center" },
-  roleBtnActive: { backgroundColor: "#DC2626", borderColor: "#DC2626" },
-  roleBtnText: { color: "#94a3b8", fontWeight: "700", fontSize: 15 },
-  roleBtnTextActive: { color: "#fff" },
-  card: { backgroundColor: "#fff", borderRadius: 24, padding: 28, shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 10 },
-  field: { marginBottom: 20 },
-  fieldLabel: { fontSize: 13, fontWeight: "700", color: "#475569", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.8 },
-  input: { borderWidth: 1.5, borderColor: "#e2e8f0", borderRadius: 12, padding: 14, fontSize: 16, color: "#1e293b", backgroundColor: "#f8fafc" },
-  loginBtn: { backgroundColor: "#DC2626", borderRadius: 14, padding: 16, alignItems: "center", marginTop: 8 },
+  tagline: { color: "#475569", fontSize: 13, marginTop: 4, letterSpacing: 0.5 },
+
+  card: {
+    backgroundColor: "#fff", borderRadius: 24, padding: 28,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.2, shadowRadius: 24, elevation: 12,
+  },
+  cardTitle: { fontSize: 20, fontWeight: "800", color: "#1B2437", marginBottom: 24 },
+
+  field: { marginBottom: 18 },
+  fieldLabel: {
+    fontSize: 11, fontWeight: "700", color: "#94a3b8",
+    marginBottom: 8, textTransform: "uppercase", letterSpacing: 1,
+  },
+  input: {
+    borderWidth: 1.5, borderColor: "#e2e8f0", borderRadius: 14,
+    padding: 14, fontSize: 16, color: "#1e293b", backgroundColor: "#f8fafc",
+  },
+  loginBtn: { backgroundColor: "#DC2626", borderRadius: 14, padding: 17, alignItems: "center", marginTop: 4 },
   loginBtnDisabled: { backgroundColor: "#fca5a5" },
-  loginBtnText: { color: "#fff", fontWeight: "800", fontSize: 16, letterSpacing: 0.5 },
-  footer: { textAlign: "center", color: "#334155", fontSize: 12, marginTop: 32, paddingBottom: 8 },
-  veliHint: { fontSize: 12, color: "#94a3b8", marginBottom: 8, textAlign: "center" },
+  loginBtnText: { color: "#fff", fontWeight: "800", fontSize: 16, letterSpacing: 0.3 },
+
+  footer: { textAlign: "center", color: "#1e3a5f", fontSize: 12, marginTop: 28 },
 });

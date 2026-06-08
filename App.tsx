@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { View, ActivityIndicator } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { View, ActivityIndicator, BackHandler } from "react-native";
+import { getSecure } from "./src/lib/secureStorage";
+import { API_BASE } from "./src/api/config";
 import LoginScreen from "./src/screens/LoginScreen";
 import HomeScreen from "./src/screens/HomeScreen";
 import FuelEntryScreen from "./src/screens/FuelEntryScreen";
@@ -11,21 +12,55 @@ import VeliHomeScreen from "./src/screens/VeliHomeScreen";
 
 type Screen = "login" | "home" | "fuel" | "ariza" | "manager" | "sefer" | "veli";
 
+async function validateToken(token: string, endpoint: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}${endpoint}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.status !== 401;
+  } catch {
+    return true; // Offline ise token'ı geçerli say
+  }
+}
+
 export default function App() {
   const [screen, setScreen] = useState<Screen | null>(null);
 
   useEffect(() => {
-    Promise.all([
-      AsyncStorage.getItem("mobileToken"),
-      AsyncStorage.getItem("managerToken"),
-      AsyncStorage.getItem("veliToken"),
-    ]).then(([driverToken, managerToken, veliToken]) => {
-      if (managerToken) setScreen("manager");
-      else if (driverToken) setScreen("home");
-      else if (veliToken) setScreen("veli");
-      else setScreen("login");
-    }).catch(() => setScreen("login"));
+    (async () => {
+      try {
+        const [driverToken, managerToken, veliToken] = await Promise.all([
+          getSecure("mobileToken"),
+          getSecure("managerToken"),
+          getSecure("veliToken"),
+        ]);
+
+        if (managerToken && await validateToken(managerToken, "/api/mobile/manager/dashboard")) {
+          setScreen("manager");
+        } else if (driverToken && await validateToken(driverToken, "/api/mobile/sefer")) {
+          setScreen("home");
+        } else if (veliToken && await validateToken(veliToken, "/api/mobile/veli/status")) {
+          setScreen("veli");
+        } else {
+          setScreen("login");
+        }
+      } catch {
+        setScreen("login");
+      }
+    })();
   }, []);
+
+  // Android fiziksel geri tuşu — alt ekranlarda ana ekrana dön
+  useEffect(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (screen === "fuel" || screen === "ariza" || screen === "sefer") {
+        setScreen("home");
+        return true;
+      }
+      return false;
+    });
+    return () => sub.remove();
+  }, [screen]);
 
   if (screen === null) {
     return (

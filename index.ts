@@ -1,5 +1,8 @@
 import { registerRootComponent } from 'expo';
 
+// Background location task — registerRootComponent'ten önce tanımlanmalı
+import "./src/lib/locationTask";
+
 import App from './App';
 
 // registerRootComponent calls AppRegistry.registerComponent('main', () => App);

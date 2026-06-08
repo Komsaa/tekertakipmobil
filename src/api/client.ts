@@ -1,8 +1,8 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getSecure } from "../lib/secureStorage";
 import { API_BASE } from "./config";
 
 export async function getToken(): Promise<string | null> {
-  return AsyncStorage.getItem("mobileToken");
+  return getSecure("mobileToken");
 }
 
 export async function authFetch(path: string, options: RequestInit = {}) {

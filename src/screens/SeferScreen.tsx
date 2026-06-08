@@ -3,6 +3,7 @@ import {
   View, Text, TouchableOpacity, StyleSheet, SafeAreaView,
   ScrollView, ActivityIndicator, Alert, Vibration, Linking, Platform,
 } from "react-native";
+import * as KeepAwake from "expo-keep-awake";
 import { authFetch } from "../api/client";
 
 type Passenger = {
@@ -67,6 +68,18 @@ export default function SeferScreen({ onBack }: Props) {
   }, []);
 
   useEffect(() => { fetchRoute(); }, [fetchRoute]);
+
+  // Sefer ekranında ekranı uyanık tut
+  useEffect(() => {
+    KeepAwake.activateKeepAwakeAsync();
+    return () => { KeepAwake.deactivateKeepAwake(); };
+  }, []);
+
+  // Güzergah yüklenince ilk durağa otomatik navigasyon aç
+  useEffect(() => {
+    if (route?.stops?.[0]) openNavigation(route.stops[0]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route?.id]);
 
   function toggleBoarded(passengerId: string) {
     Vibration.vibrate(40);
@@ -160,6 +173,8 @@ export default function SeferScreen({ onBack }: Props) {
 
     if (!isLast) {
       setStopIndex((i) => i + 1);
+      // Sonraki durağa otomatik navigasyon
+      openNavigation(nextStop!);
     } else {
       Alert.alert("Sefer Tamamlandı ✓", "Tüm duraklar geçildi.", [
         { text: "Ana Ekran", onPress: onBack },

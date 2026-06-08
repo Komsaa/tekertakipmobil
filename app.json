@@ -22,7 +22,8 @@
         "NSLocationAlwaysUsageDescription": "Sefer sırasında arka planda konum paylaşmak için konumunuza her zaman erişim gereklidir.",
         "NSCameraUsageDescription": "Yakıt fişi ve arıza fotoğrafı çekmek için kameraya erişim gereklidir.",
         "NSPhotoLibraryUsageDescription": "Fotoğraf yüklemek için fotoğraf kitaplığına erişim gereklidir.",
-        "NSUserNotificationsUsageDescription": "Sefer ve bildirim uyarıları almak için izin gereklidir."
+        "NSUserNotificationsUsageDescription": "Sefer ve bildirim uyarıları almak için izin gereklidir.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -37,9 +38,6 @@
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_BACKGROUND_LOCATION",
         "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_LOCATION",
@@ -71,7 +69,8 @@
           "photosPermission": "TékerTakip, fotoğraf yüklemek için fotoğraf kitaplığına erişim ister.",
           "cameraPermission": "TékerTakip, yakıt fişi ve arıza fotoğrafı çekmek için kameraya erişim ister."
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "extra": {
       "eas": {
