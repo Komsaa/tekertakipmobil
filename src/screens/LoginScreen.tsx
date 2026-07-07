@@ -81,7 +81,7 @@ export default function LoginScreen({ onDriverLogin, onManagerLogin, onVeliLogin
                 style={styles.input}
                 value={username}
                 onChangeText={setUsername}
-                placeholder="kullaniciadi"
+                placeholder="Kullanıcı adınız"
                 placeholderTextColor="#94a3b8"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -97,6 +97,7 @@ export default function LoginScreen({ onDriverLogin, onManagerLogin, onVeliLogin
                 placeholder="••••••"
                 placeholderTextColor="#94a3b8"
                 secureTextEntry
+                keyboardType="number-pad"
               />
             </View>
 

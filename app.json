@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "TékerTakip Şöför",
+    "name": "TekerTakip",
     "slug": "tekertakip-driver",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -48,9 +48,9 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "TékerTakip, sefer sırasında arka planda konumunuzu paylaşmak için her zaman konum erişimi ister.",
-          "locationAlwaysPermission": "TékerTakip, sefer sırasında arka planda konumunuzu paylaşmak için her zaman konum erişimi ister.",
-          "locationWhenInUsePermission": "TékerTakip, güzergah takibi için konumunuza erişim ister.",
+          "locationAlwaysAndWhenInUsePermission": "TekerTakip, sefer sırasında arka planda konumunuzu paylaşmak için her zaman konum erişimi ister.",
+          "locationAlwaysPermission": "TekerTakip, sefer sırasında arka planda konumunuzu paylaşmak için her zaman konum erişimi ister.",
+          "locationWhenInUsePermission": "TekerTakip, güzergah takibi için konumunuza erişim ister.",
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
         }
@@ -66,8 +66,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "TékerTakip, fotoğraf yüklemek için fotoğraf kitaplığına erişim ister.",
-          "cameraPermission": "TékerTakip, yakıt fişi ve arıza fotoğrafı çekmek için kameraya erişim ister."
+          "photosPermission": "TekerTakip, fotoğraf yüklemek için fotoğraf kitaplığına erişim ister.",
+          "cameraPermission": "TekerTakip, yakıt fişi ve arıza fotoğrafı çekmek için kameraya erişim ister."
         }
       ],
       "expo-secure-store"

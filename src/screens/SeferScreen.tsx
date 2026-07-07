@@ -5,6 +5,7 @@ import {
 } from "react-native";
 import * as KeepAwake from "expo-keep-awake";
 import { authFetch } from "../api/client";
+import { startBackgroundLocation, stopBackgroundLocation } from "../lib/locationTask";
 
 type Passenger = {
   id: string;
@@ -69,10 +70,31 @@ export default function SeferScreen({ onBack }: Props) {
 
   useEffect(() => { fetchRoute(); }, [fetchRoute]);
 
-  // Sefer ekranında ekranı uyanık tut
+  // Sefer ekranında ekranı uyanık tut + konum takibini başlat
   useEffect(() => {
     KeepAwake.activateKeepAwakeAsync();
-    return () => { KeepAwake.deactivateKeepAwake(); };
+
+    startBackgroundLocation().catch((err: Error) => {
+      if (err.message === "background_denied") {
+        Alert.alert(
+          "Konum İzni",
+          "Arka plan konum takibi için Ayarlar > TekerTakip > Konum bölümünden \"Her Zaman\" seçeneğini etkinleştirin.",
+          [{ text: "Tamam" }]
+        );
+      } else if (err.message === "foreground_denied") {
+        Alert.alert(
+          "Konum İzni Gerekli",
+          "Sefer sırasında konum takibi için uygulama izni gereklidir. Ayarlar > TekerTakip > Konum bölümünden izin verin.",
+          [{ text: "Tamam" }]
+        );
+      }
+      // İzin yoksa sefer devam eder, sadece konum gönderilmez
+    });
+
+    return () => {
+      KeepAwake.deactivateKeepAwake();
+      stopBackgroundLocation().catch(() => {});
+    };
   }, []);
 
   // Güzergah yüklenince ilk durağa otomatik navigasyon aç

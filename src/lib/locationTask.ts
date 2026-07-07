@@ -44,7 +44,7 @@ export async function startBackgroundLocation(): Promise<void> {
     distanceInterval: 30,       // veya 30 metre hareket edince
     showsBackgroundLocationIndicator: true,
     foregroundService: {
-      notificationTitle: "TékerTakip",
+      notificationTitle: "TekerTakip",
       notificationBody: "Konum takibi aktif",
       notificationColor: "#DC2626",
     },

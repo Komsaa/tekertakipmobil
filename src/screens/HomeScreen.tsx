@@ -5,6 +5,7 @@ import {
 import { getSecure, deleteSecureMany } from "../lib/secureStorage";
 import { authFetch } from "../api/client";
 import { LogoIcon } from "../components/Logo";
+import { stopBackgroundLocation } from "../lib/locationTask";
 
 type Driver = {
   id: string;
@@ -50,7 +51,7 @@ export default function HomeScreen({ onLogout, onFuelEntry, onAriza, onSefer }: 
         {
           text: "Hesabı Sil", style: "destructive",
           onPress: async () => {
-            await stopTracking();
+            await stopBackgroundLocation().catch(() => {});
             await authFetch("/api/mobile/account/delete?role=driver", { method: "DELETE" });
             await deleteSecureMany(["mobileToken", "driverData"]);
             onLogout();
