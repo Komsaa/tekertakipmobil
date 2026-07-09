@@ -56,7 +56,7 @@ export default function ArizaScreen({ onBack }: Props) {
 
   return (
     <SafeAreaView style={s.container}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}>
         <View style={s.header}>
           <TouchableOpacity onPress={onBack} style={s.backBtn}>
             <Text style={s.backText}>←</Text>

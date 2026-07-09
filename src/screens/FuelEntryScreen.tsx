@@ -31,10 +31,6 @@ export default function FuelEntryScreen({ onBack, onSuccess }: Props) {
   }
 
   async function handleSubmit() {
-    if (!photo) {
-      Alert.alert("Eksik Bilgi", "Fiş fotoğrafı zorunludur.");
-      return;
-    }
     if (!odometer) {
       Alert.alert("Eksik Bilgi", "KM girişi zorunludur.");
       return;
@@ -77,11 +73,11 @@ export default function FuelEntryScreen({ onBack, onSuccess }: Props) {
     }
   }
 
-  const canSubmit = !!photo && !!odometer && !!liters && !!totalAmount && !loading;
+  const canSubmit = !!odometer && !!liters && !!totalAmount && !loading;
 
   return (
     <SafeAreaView style={s.container}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}>
 
         <View style={s.header}>
           <TouchableOpacity onPress={onBack} style={s.backBtn}>
@@ -94,7 +90,7 @@ export default function FuelEntryScreen({ onBack, onSuccess }: Props) {
         <ScrollView contentContainerStyle={s.content}>
 
           {/* Fiş fotoğrafı */}
-          <Text style={s.label}>FİŞ FOTOĞRAFI *</Text>
+          <Text style={s.label}>FİŞ FOTOĞRAFI (opsiyonel)</Text>
           {photo ? (
             <View style={s.previewWrap}>
               <Image source={{ uri: photo.uri }} style={s.preview} />
