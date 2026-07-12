@@ -11,11 +11,47 @@ type Props = { onBack: () => void; onSuccess: () => void };
 
 export default function FuelEntryScreen({ onBack, onSuccess }: Props) {
   const [photo, setPhoto] = useState<{ uri: string } | null>(null);
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
+  const [parsing, setParsing] = useState(false);
+  const [parseHint, setParseHint] = useState<string | null>(null);
   const [odometer, setOdometer] = useState("");
   const [liters, setLiters] = useState("");
   const [totalAmount, setTotalAmount] = useState("");
   const [paymentType, setPaymentType] = useState("veresiye");
   const [loading, setLoading] = useState(false);
+
+  async function uploadAndParse(uri: string) {
+    setParsing(true);
+    setParseHint(null);
+    try {
+      // 1. Fotoğrafı yükle
+      const fd = new FormData();
+      fd.append("file", { uri, name: `receipt_${Date.now()}.jpg`, type: "image/jpeg" } as any);
+      const up = await authFetchMultipart("/api/mobile/upload", fd);
+      if (!up.ok) { setParsing(false); return; }
+      const { url } = await up.json();
+      setUploadedUrl(url);
+
+      // 2. AI ile oku
+      const res = await authFetch("/api/mobile/parse-receipt", {
+        method: "POST",
+        body: JSON.stringify({ photoUrl: url }),
+      });
+      if (!res.ok) { setParsing(false); return; }
+      const { parsed } = await res.json();
+      if (!parsed) { setParseHint("Fiş okunamadı, lütfen elle girin."); setParsing(false); return; }
+
+      const filled: string[] = [];
+      if (parsed.liters != null) { setLiters(String(parsed.liters)); filled.push("litre"); }
+      if (parsed.totalAmount != null) { setTotalAmount(String(parsed.totalAmount)); filled.push("tutar"); }
+      if (parsed.odometer != null) { setOdometer(String(parsed.odometer)); filled.push("KM"); }
+      setParseHint(filled.length > 0 ? `Otomatik dolduruldu: ${filled.join(", ")}` : "Fiş okundu ama veri çıkarılamadı.");
+    } catch {
+      setParseHint("AI okuma başarısız, lütfen elle girin.");
+    } finally {
+      setParsing(false);
+    }
+  }
 
   async function pickPhoto(source: "camera" | "gallery") {
     const perm = source === "camera"
@@ -27,7 +63,13 @@ export default function FuelEntryScreen({ onBack, onSuccess }: Props) {
       ? await ImagePicker.launchCameraAsync({ quality: 0.8 })
       : await ImagePicker.launchImageLibraryAsync({ quality: 0.8, mediaTypes: ["images"] });
 
-    if (!result.canceled && result.assets[0]) setPhoto({ uri: result.assets[0].uri });
+    if (!result.canceled && result.assets[0]) {
+      const uri = result.assets[0].uri;
+      setPhoto({ uri });
+      setUploadedUrl(null);
+      setParseHint(null);
+      uploadAndParse(uri);
+    }
   }
 
   async function handleSubmit() {
@@ -41,8 +83,9 @@ export default function FuelEntryScreen({ onBack, onSuccess }: Props) {
     }
     setLoading(true);
     try {
-      let receiptPhoto: string | null = null;
-      if (photo) {
+      // Fotoğraf parse sırasında zaten yüklendiyse tekrar yükleme
+      let receiptPhoto: string | null = uploadedUrl;
+      if (photo && !receiptPhoto) {
         const fd = new FormData();
         fd.append("file", { uri: photo.uri, name: `receipt_${Date.now()}.jpg`, type: "image/jpeg" } as any);
         const up = await authFetchMultipart("/api/mobile/upload", fd);
@@ -73,7 +116,7 @@ export default function FuelEntryScreen({ onBack, onSuccess }: Props) {
     }
   }
 
-  const canSubmit = !!odometer && !!liters && !!totalAmount && !loading;
+  const canSubmit = !!odometer && !!liters && !!totalAmount && !loading && !parsing;
 
   return (
     <SafeAreaView style={s.container}>
@@ -90,11 +133,17 @@ export default function FuelEntryScreen({ onBack, onSuccess }: Props) {
         <ScrollView contentContainerStyle={s.content}>
 
           {/* Fiş fotoğrafı */}
-          <Text style={s.label}>FİŞ FOTOĞRAFI (opsiyonel)</Text>
+          <Text style={s.label}>FİŞ / KM FOTOĞRAFI</Text>
           {photo ? (
             <View style={s.previewWrap}>
               <Image source={{ uri: photo.uri }} style={s.preview} />
-              <TouchableOpacity style={s.removeBtn} onPress={() => setPhoto(null)}>
+              {parsing && (
+                <View style={s.parsingOverlay}>
+                  <ActivityIndicator color="#fff" size="small" />
+                  <Text style={s.parsingText}>Fiş okunuyor...</Text>
+                </View>
+              )}
+              <TouchableOpacity style={s.removeBtn} onPress={() => { setPhoto(null); setUploadedUrl(null); setParseHint(null); }}>
                 <Text style={s.removeBtnText}>✕ Kaldır</Text>
               </TouchableOpacity>
             </View>
@@ -107,6 +156,12 @@ export default function FuelEntryScreen({ onBack, onSuccess }: Props) {
                 <Text style={s.photoBtnText}>🖼️  Galeriden</Text>
               </TouchableOpacity>
             </View>
+          )}
+
+          {parseHint && (
+            <Text style={[s.hint, parseHint.startsWith("Otomatik") ? s.hintOk : s.hintWarn]}>
+              {parseHint.startsWith("Otomatik") ? "✓ " : "⚠ "}{parseHint}
+            </Text>
           )}
 
           {/* KM */}
@@ -217,4 +272,13 @@ const s = StyleSheet.create({
   submitBtn: { backgroundColor: "#DC2626", borderRadius: 16, padding: 18, alignItems: "center", marginTop: 16 },
   submitBtnDisabled: { backgroundColor: "#fca5a5" },
   submitBtnText: { color: "#fff", fontSize: 17, fontWeight: "800" },
+  parsingOverlay: {
+    position: "absolute", bottom: 0, left: 0, right: 0,
+    backgroundColor: "rgba(0,0,0,0.6)", padding: 10,
+    flexDirection: "row", alignItems: "center", gap: 8,
+  },
+  parsingText: { color: "#fff", fontSize: 13, fontWeight: "600" },
+  hint: { borderRadius: 10, padding: 10, fontSize: 13, fontWeight: "600" },
+  hintOk: { backgroundColor: "#f0fdf4", color: "#16a34a" },
+  hintWarn: { backgroundColor: "#fff7ed", color: "#ea580c" },
 });
