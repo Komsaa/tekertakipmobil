@@ -1,8 +1,9 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   SafeAreaView, Alert, ActivityIndicator, RefreshControl,
 } from "react-native";
+import { WebView } from "react-native-webview";
 import { getSecure, deleteSecureMany } from "../lib/secureStorage";
 import { API_BASE } from "../api/config";
 
@@ -25,7 +26,10 @@ export default function ManagerHomeScreen({ onLogout }: Props) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [username, setUsername] = useState("");
-  const [tab, setTab] = useState<"dashboard" | "fuel" | "reports">("dashboard");
+  const [tab, setTab] = useState<"dashboard" | "fuel" | "reports" | "panel">("dashboard");
+  const [panelUrl, setPanelUrl] = useState<string | null>(null);
+  const [panelLoading, setPanelLoading] = useState(false);
+  const panelSessionReady = useRef(false);
 
   useEffect(() => {
     getSecure("managerUsername").then((u) => u && setUsername(u));
@@ -55,6 +59,26 @@ export default function ManagerHomeScreen({ onLogout }: Props) {
   }
 
   const onRefresh = useCallback(() => { setRefreshing(true); load(); }, []);
+
+  async function openPanel() {
+    if (panelUrl) { setTab("panel"); return; }
+    setPanelLoading(true);
+    setTab("panel");
+    try {
+      const token = await getSecure("managerToken");
+      const res = await fetch(`${API_BASE}/api/mobile/manager/web-token`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) { Alert.alert("Hata", "Panel açılamadı"); setTab("dashboard"); return; }
+      const { token: exchangeToken } = await res.json();
+      setPanelUrl(`${API_BASE}/api/panel/mobile-session?t=${exchangeToken}`);
+    } catch {
+      Alert.alert("Bağlantı Hatası", "Panel açılamadı.");
+      setTab("dashboard");
+    } finally {
+      setPanelLoading(false);
+    }
+  }
 
   async function handleLogout() {
     Alert.alert("Çıkış", "Oturumu kapatmak istiyor musunuz?", [
@@ -89,15 +113,40 @@ export default function ManagerHomeScreen({ onLogout }: Props) {
 
       {/* Tab bar */}
       <View style={s.tabBar}>
-        {([["dashboard", "📊 Özet"], ["fuel", "⛽ Yakıt"], ["reports", "🔧 Arızalar"]] as const).map(([key, label]) => (
-          <TouchableOpacity key={key} style={[s.tab, tab === key && s.tabActive]} onPress={() => setTab(key)}>
+        {([["dashboard", "📊 Özet"], ["fuel", "⛽ Yakıt"], ["reports", "🔧 Arıza"]] as const).map(([key, label]) => (
+          <TouchableOpacity key={key} style={[s.tab, tab === key && s.tabActive]} onPress={() => setTab(key as any)}>
             <Text style={[s.tabText, tab === key && s.tabTextActive]}>{label}</Text>
           </TouchableOpacity>
         ))}
+        <TouchableOpacity style={[s.tab, tab === "panel" && s.tabActive]} onPress={openPanel}>
+          <Text style={[s.tabText, tab === "panel" && s.tabTextActive]}>🌐 Panel</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Panel WebView — kalıcı mount, tab dışındayken gizli */}
+      <View style={{ flex: tab === "panel" ? 1 : 0, overflow: "hidden" }}>
+        {panelLoading && (
+          <View style={s.panelLoading}>
+            <ActivityIndicator size="large" color="#DC2626" />
+            <Text style={s.panelLoadingText}>Panel yükleniyor...</Text>
+          </View>
+        )}
+        {panelUrl && !panelLoading && (
+          <WebView
+            source={{ uri: panelUrl }}
+            style={{ flex: 1 }}
+            onNavigationStateChange={(state) => {
+              if (!panelSessionReady.current && state.url.includes("/mobil") && !state.url.includes("mobile-session")) {
+                panelSessionReady.current = true;
+                setPanelUrl(`${API_BASE}/mobil`);
+              }
+            }}
+          />
+        )}
       </View>
 
       <ScrollView
-        style={s.scroll}
+        style={[s.scroll, { display: tab !== "panel" ? "flex" : "none" }]}
         contentContainerStyle={s.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
@@ -235,4 +284,6 @@ const s = StyleSheet.create({
   emptyIcon: { fontSize: 48, marginBottom: 12 },
   emptyText: { fontSize: 16, color: "#64748b", fontWeight: "600" },
   footer: { textAlign: "center", color: "#94a3b8", fontSize: 12, marginTop: 16 },
+  panelLoading: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#f8fafc" },
+  panelLoadingText: { marginTop: 12, color: "#64748b", fontSize: 15, fontWeight: "600" },
 });

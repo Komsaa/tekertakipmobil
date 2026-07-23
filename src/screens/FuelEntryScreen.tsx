@@ -130,7 +130,7 @@ export default function FuelEntryScreen({ onBack, onSuccess }: Props) {
           <View style={{ width: 40 }} />
         </View>
 
-        <ScrollView contentContainerStyle={s.content}>
+        <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
 
           {/* Fiş fotoğrafı */}
           <Text style={s.label}>FİŞ / KM FOTOĞRAFI</Text>
