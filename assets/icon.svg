@@ -1,0 +1,21 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Arka plan — yuvarlatılmış kare (iOS/Android ikon standartı) -->
+  <rect width="1024" height="1024" rx="230" fill="#1B2437"/>
+
+  <!-- Dış lastik halkası -->
+  <circle cx="512" cy="512" r="348" stroke="white" stroke-width="78" fill="none"/>
+
+  <!-- 3 jant kolu -->
+  <!-- Üst -->
+  <line x1="512" y1="164" x2="512" y2="512" stroke="white" stroke-width="72" stroke-linecap="round"/>
+  <!-- Sol-alt -->
+  <line x1="210" y1="686" x2="512" y2="512" stroke="white" stroke-width="72" stroke-linecap="round"/>
+  <!-- Sağ-alt -->
+  <line x1="814" y1="686" x2="512" y2="512" stroke="white" stroke-width="72" stroke-linecap="round"/>
+
+  <!-- GPS pin hub -->
+  <path d="M512 276 C420 276 328 358 328 440 C328 548 512 736 512 736 C512 736 696 548 696 440 C696 358 604 276 512 276Z" fill="#DC2626"/>
+
+  <!-- Pin beyaz deliği -->
+  <circle cx="512" cy="428" r="100" fill="white"/>
+</svg>
