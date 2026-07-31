@@ -9,8 +9,9 @@ import ArizaScreen from "./src/screens/ArizaScreen";
 import ManagerHomeScreen from "./src/screens/ManagerHomeScreen";
 import SeferScreen from "./src/screens/SeferScreen";
 import VeliHomeScreen from "./src/screens/VeliHomeScreen";
+import RouteCreatorScreen from "./src/screens/RouteCreatorScreen";
 
-type Screen = "login" | "home" | "fuel" | "ariza" | "manager" | "sefer" | "veli";
+type Screen = "login" | "home" | "fuel" | "ariza" | "manager" | "sefer" | "veli" | "routeCreator";
 
 async function validateToken(token: string, endpoint: string): Promise<boolean> {
   try {
@@ -53,7 +54,7 @@ export default function App() {
   // Android fiziksel geri tuşu — alt ekranlarda ana ekrana dön
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      if (screen === "fuel" || screen === "ariza" || screen === "sefer") {
+      if (screen === "fuel" || screen === "ariza" || screen === "sefer" || screen === "routeCreator") {
         setScreen("home");
         return true;
       }
@@ -82,5 +83,6 @@ export default function App() {
   if (screen === "manager") return <ManagerHomeScreen onLogout={() => setScreen("login")} />;
   if (screen === "sefer") return <SeferScreen onBack={() => setScreen("home")} />;
   if (screen === "veli") return <VeliHomeScreen onLogout={() => setScreen("login")} />;
-  return <HomeScreen onLogout={() => setScreen("login")} onFuelEntry={() => setScreen("fuel")} onAriza={() => setScreen("ariza")} onSefer={() => setScreen("sefer")} />;
+  if (screen === "routeCreator") return <RouteCreatorScreen onBack={() => setScreen("home")} />;
+  return <HomeScreen onLogout={() => setScreen("login")} onFuelEntry={() => setScreen("fuel")} onAriza={() => setScreen("ariza")} onSefer={() => setScreen("sefer")} onRouteCreate={() => setScreen("routeCreator")} />;
 }

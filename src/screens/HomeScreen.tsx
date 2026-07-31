@@ -18,9 +18,10 @@ type Props = {
   onFuelEntry: () => void;
   onAriza: () => void;
   onSefer: () => void;
+  onRouteCreate: () => void;
 };
 
-export default function HomeScreen({ onLogout, onFuelEntry, onAriza, onSefer }: Props) {
+export default function HomeScreen({ onLogout, onFuelEntry, onAriza, onSefer, onRouteCreate }: Props) {
   const [driver, setDriver] = useState<Driver | null>(null);
 
   useEffect(() => {
@@ -124,6 +125,14 @@ export default function HomeScreen({ onLogout, onFuelEntry, onAriza, onSefer }: 
             <Text style={styles.actionSub}>Yöneticiye ilet</Text>
           </TouchableOpacity>
 
+          <TouchableOpacity style={[styles.actionCard, styles.actionRoute]} onPress={onRouteCreate} activeOpacity={0.85}>
+            <View style={styles.actionIconWrap}>
+              <Text style={styles.actionIcon}>🗺️</Text>
+            </View>
+            <Text style={styles.actionTitle}>Güzergah</Text>
+            <Text style={styles.actionSub}>Durak oluştur</Text>
+          </TouchableOpacity>
+
         </View>
 
         <TouchableOpacity onPress={handleDeleteAccount} style={styles.deleteBtn}>
@@ -193,6 +202,7 @@ const styles = StyleSheet.create({
   },
   actionFuel:  { backgroundColor: "#fff", borderWidth: 1.5, borderColor: "#fecaca" },
   actionAriza: { backgroundColor: "#fff", borderWidth: 1.5, borderColor: "#fed7aa" },
+  actionRoute: { backgroundColor: "#fff", borderWidth: 1.5, borderColor: "#bbf7d0" },
   actionIconWrap: {
     width: 52, height: 52, borderRadius: 16,
     backgroundColor: "rgba(0,0,0,0.04)",
