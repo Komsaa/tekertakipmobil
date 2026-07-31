@@ -24,8 +24,10 @@ type Driver = {
   isTracking: boolean; plate: string | null;
 };
 type AdvanceEntry = { id: string; category: string; amount: number; description: string | null; date: string; driverName: string | null };
+type Vehicle = { id: string; plate: string; brand: string | null; model: string | null };
+type MaintenanceRecord = { id: string; plate: string; date: string; type: string; description: string; cost: number | null; odometer: number | null; nextDate: string | null };
 
-type Tab = "dashboard" | "drivers" | "payment" | "fuel" | "reports";
+type Tab = "dashboard" | "drivers" | "payment" | "fuel" | "reports" | "maintenance";
 type Props = { onLogout: () => void };
 
 const ADV_CATS = ["avans", "maaş", "ikramiye", "diğer"] as const;
@@ -56,6 +58,21 @@ export default function ManagerHomeScreen({ onLogout }: Props) {
   const [advSaving, setAdvSaving] = useState(false);
   const [recentAdvances, setRecentAdvances] = useState<AdvanceEntry[]>([]);
 
+  // Bakım
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([]);
+  const [maintenanceLoaded, setMaintenanceLoaded] = useState(false);
+  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  const [vehiclePickerOpen, setVehiclePickerOpen] = useState(false);
+  const [vehiclePickerSearch, setVehiclePickerSearch] = useState("");
+  const [maintType, setMaintType] = useState("genel_bakim");
+  const [maintDesc, setMaintDesc] = useState("");
+  const [maintCost, setMaintCost] = useState("");
+  const [maintOdometer, setMaintOdometer] = useState("");
+  const [maintDate, setMaintDate] = useState(today());
+  const [maintNextDate, setMaintNextDate] = useState("");
+  const [maintSaving, setMaintSaving] = useState(false);
+
   // Gider
   const [expCategory, setExpCategory] = useState("diğer");
   const [expAmount, setExpAmount] = useState("");
@@ -76,6 +93,7 @@ export default function ManagerHomeScreen({ onLogout }: Props) {
   useEffect(() => {
     if (tab === "drivers" && !driversLoaded) loadDrivers();
     if (tab === "payment") { loadAdvances(); if (!driversLoaded) loadDrivers(); }
+    if (tab === "maintenance" && !maintenanceLoaded) loadMaintenance();
   }, [tab]);
 
   async function authHeader() {
@@ -103,6 +121,50 @@ export default function ManagerHomeScreen({ onLogout }: Props) {
     } catch { /* sessiz */ }
   }
 
+  async function loadMaintenance() {
+    try {
+      const res = await fetch(`${API_BASE}/api/mobile/manager/maintenance`, { headers: await authHeader() });
+      if (res.ok) {
+        const data = await res.json();
+        setVehicles(data.vehicles);
+        setMaintenanceRecords(data.records);
+        setMaintenanceLoaded(true);
+      }
+    } catch { /* sessiz */ }
+  }
+
+  async function submitMaintenance() {
+    if (!selectedVehicle) { Alert.alert("Uyarı", "Bir araç seçin"); return; }
+    if (!maintDesc.trim()) { Alert.alert("Uyarı", "Açıklama girin"); return; }
+    setMaintSaving(true);
+    try {
+      const headers = await authHeader();
+      const res = await fetch(`${API_BASE}/api/mobile/manager/maintenance`, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vehicleId: selectedVehicle.id,
+          date: maintDate,
+          type: maintType,
+          description: maintDesc,
+          cost: maintCost || null,
+          odometer: maintOdometer || null,
+          nextDate: maintNextDate || null,
+        }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        Alert.alert("Kaydedildi", `${json.plate} için bakım kaydedildi.`);
+        setSelectedVehicle(null); setMaintDesc(""); setMaintCost("");
+        setMaintOdometer(""); setMaintNextDate(""); setMaintDate(today());
+        setMaintType("genel_bakim"); loadMaintenance();
+      } else {
+        Alert.alert("Hata", json.error ?? "Kaydedilemedi");
+      }
+    } catch { Alert.alert("Bağlantı Hatası", "Sunucuya ulaşılamadı."); }
+    finally { setMaintSaving(false); }
+  }
+
   async function loadAdvances() {
     try {
       const res = await fetch(`${API_BASE}/api/mobile/manager/advance`, { headers: await authHeader() });
@@ -115,6 +177,7 @@ export default function ManagerHomeScreen({ onLogout }: Props) {
     loadDashboard();
     if (tab === "drivers") loadDrivers();
     if (tab === "payment") { loadAdvances(); loadDrivers(); }
+    if (tab === "maintenance") loadMaintenance();
   }, [tab]);
 
   function openMaps(lat: number, lng: number, name: string) {
@@ -227,7 +290,8 @@ export default function ManagerHomeScreen({ onLogout }: Props) {
     ["drivers", "📍 Şöförler"],
     ["payment", "💳 Ödeme"],
     ["fuel", "⛽ Yakıt"],
-    ["reports", "🔧 Arıza"],
+    ["maintenance", "🔩 Bakım"],
+    ["reports", "🚨 Arıza"],
   ];
 
   return (
@@ -596,6 +660,95 @@ export default function ManagerHomeScreen({ onLogout }: Props) {
                 <Text style={s.cardSub}>{f.liters} lt{f.station ? ` · ${f.station}` : ""} · {f.paymentType}</Text>
               </View>
             ))}
+          </>
+        )}
+
+        {/* ── BAKIM ── */}
+        {tab === "maintenance" && (
+          <>
+            <View style={s.payForm}>
+              <Text style={s.sectionTitle}>Yeni Bakım Kaydı</Text>
+
+              {/* Araç seçici */}
+              <Text style={s.fieldLabel}>Araç *</Text>
+              <TouchableOpacity style={s.driverSelector} onPress={() => { setVehiclePickerOpen(true); setVehiclePickerSearch(""); }}>
+                <Text style={selectedVehicle ? s.driverSelectorSelected : s.driverSelectorPlaceholder}>
+                  {selectedVehicle ? `${selectedVehicle.plate}${selectedVehicle.brand ? " · " + selectedVehicle.brand : ""}` : "Araç seçin..."}
+                </Text>
+                <Text style={s.driverSelectorArrow}>▼</Text>
+              </TouchableOpacity>
+
+              {vehiclePickerOpen && (
+                <View style={s.pickerDropdown}>
+                  <TextInput style={s.pickerSearch} placeholder="Plaka ara..." placeholderTextColor="#94a3b8" value={vehiclePickerSearch} onChangeText={setVehiclePickerSearch} autoFocus />
+                  <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled>
+                    {vehicles.filter((v) => v.plate.toLowerCase().includes(vehiclePickerSearch.toLowerCase())).map((v) => (
+                      <TouchableOpacity key={v.id} style={s.pickerItem} onPress={() => { setSelectedVehicle(v); setVehiclePickerOpen(false); }}>
+                        <Text style={s.pickerItemName}>{v.plate}</Text>
+                        <Text style={s.pickerItemSub}>{[v.brand, v.model].filter(Boolean).join(" ") || "—"}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+
+              {/* Bakım türü */}
+              <Text style={s.fieldLabel}>Tür</Text>
+              <View style={s.catRow}>
+                {[["genel_bakim","Genel"],["yag_degisimi","Yağ"],["lastik","Lastik"],["fren","Fren"],["elektrik","Elektrik"],["karoseri","Karoseri"],["diger","Diğer"]].map(([val, label]) => (
+                  <TouchableOpacity key={val} style={[s.catBtn, maintType === val && s.catBtnActive]} onPress={() => setMaintType(val)}>
+                    <Text style={[s.catText, maintType === val && s.catTextActive]}>{label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={s.fieldLabel}>Açıklama *</Text>
+              <TextInput style={[s.input, { height: 72, textAlignVertical: "top" }]} value={maintDesc} onChangeText={setMaintDesc} multiline placeholder="Yapılan işlem..." placeholderTextColor="#94a3b8" />
+
+              <View style={{ flexDirection: "row", gap: 10 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.fieldLabel}>Maliyet (₺)</Text>
+                  <TextInput style={s.input} value={maintCost} onChangeText={setMaintCost} keyboardType="numeric" placeholder="0" placeholderTextColor="#94a3b8" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.fieldLabel}>Km</Text>
+                  <TextInput style={s.input} value={maintOdometer} onChangeText={setMaintOdometer} keyboardType="numeric" placeholder="örn: 145000" placeholderTextColor="#94a3b8" />
+                </View>
+              </View>
+
+              <View style={{ flexDirection: "row", gap: 10 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.fieldLabel}>Tarih</Text>
+                  <TextInput style={s.input} value={maintDate} onChangeText={setMaintDate} placeholder="YYYY-MM-DD" placeholderTextColor="#94a3b8" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.fieldLabel}>Sonraki Bakım</Text>
+                  <TextInput style={s.input} value={maintNextDate} onChangeText={setMaintNextDate} placeholder="YYYY-MM-DD" placeholderTextColor="#94a3b8" />
+                </View>
+              </View>
+
+              <TouchableOpacity style={[s.submitBtn, { backgroundColor: "#0369a1" }, maintSaving && { opacity: 0.6 }]} onPress={submitMaintenance} disabled={maintSaving}>
+                {maintSaving ? <ActivityIndicator color="#fff" /> : <Text style={s.submitBtnText}>Bakımı Kaydet</Text>}
+              </TouchableOpacity>
+            </View>
+
+            {maintenanceRecords.length > 0 && (
+              <>
+                <Text style={s.sectionTitle}>Son Bakımlar</Text>
+                {maintenanceRecords.map((r) => (
+                  <View key={r.id} style={s.card}>
+                    <View style={s.cardRow}>
+                      <Text style={s.cardTime}>{new Date(r.date).toLocaleDateString("tr-TR")}</Text>
+                      {r.cost != null && <Text style={[s.fuelAmount, { color: "#0369a1" }]}>₺{r.cost.toLocaleString("tr-TR", { maximumFractionDigits: 0 })}</Text>}
+                    </View>
+                    <Text style={s.cardTitle}>{r.plate} · {r.type.replace(/_/g, " ")}</Text>
+                    <Text style={s.cardSub}>{r.description}</Text>
+                    {r.odometer && <Text style={s.cardSub}>{r.odometer.toLocaleString("tr-TR")} km</Text>}
+                    {r.nextDate && <Text style={[s.cardSub, { color: "#d97706" }]}>Sonraki: {new Date(r.nextDate).toLocaleDateString("tr-TR")}</Text>}
+                  </View>
+                ))}
+              </>
+            )}
           </>
         )}
 
