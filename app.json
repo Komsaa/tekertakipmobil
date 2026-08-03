@@ -2,7 +2,7 @@
   "expo": {
     "name": "TekerTakip",
     "slug": "tekertakip-driver",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -72,6 +72,15 @@
       ],
       "expo-secure-store"
     ],
+    "updates": {
+      "url": "https://u.expo.dev/a59269a7-9936-4592-8720-e20c0b305ce8",
+      "enabled": true,
+      "fallbackToCacheTimeout": 0,
+      "checkAutomatically": "ON_LOAD"
+    },
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
     "extra": {
       "eas": {
         "projectId": "a59269a7-9936-4592-8720-e20c0b305ce8"
