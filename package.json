@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@expo/ngrok": "^4.1.0",
+    "@react-native-ml-kit/text-recognition": "^2.0.0",
     "expo": "~54.0.34",
     "expo-device": "~8.0.10",
     "expo-image-picker": "~17.0.11",

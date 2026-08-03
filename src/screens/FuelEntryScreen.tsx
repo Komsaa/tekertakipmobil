@@ -5,7 +5,9 @@ import {
   KeyboardAvoidingView, Platform,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import TextRecognition from "@react-native-ml-kit/text-recognition";
 import { authFetch, authFetchMultipart } from "../api/client";
+import { parseReceiptText } from "../lib/parseReceiptText";
 
 type Props = { onBack: () => void; onSuccess: () => void };
 
@@ -24,30 +26,33 @@ export default function FuelEntryScreen({ onBack, onSuccess }: Props) {
     setParsing(true);
     setParseHint(null);
     try {
-      // 1. Fotoğrafı yükle
+      // 1. Cihazda ML Kit ile metni oku
+      const result = await TextRecognition.recognize(uri);
+      const rawText = result.text ?? "";
+
+      // 2. Fotoğrafı sunucuya yükle (depolama için)
       const fd = new FormData();
       fd.append("file", { uri, name: `receipt_${Date.now()}.jpg`, type: "image/jpeg" } as any);
       const up = await authFetchMultipart("/api/mobile/upload", fd);
-      if (!up.ok) { setParsing(false); return; }
-      const { url } = await up.json();
-      setUploadedUrl(url);
+      if (up.ok) {
+        const { url } = await up.json();
+        setUploadedUrl(url);
+      }
 
-      // 2. AI ile oku
-      const res = await authFetch("/api/mobile/parse-receipt", {
-        method: "POST",
-        body: JSON.stringify({ photoUrl: url }),
-      });
-      if (!res.ok) { setParsing(false); return; }
-      const { parsed } = await res.json();
-      if (!parsed) { setParseHint("Fiş okunamadı, lütfen elle girin."); setParsing(false); return; }
+      // 3. Ham metni parse et
+      if (!rawText.trim()) {
+        setParseHint("Fiş okunamadı, lütfen elle girin.");
+        return;
+      }
 
+      const parsed = parseReceiptText(rawText);
       const filled: string[] = [];
       if (parsed.liters != null) { setLiters(String(parsed.liters)); filled.push("litre"); }
       if (parsed.totalAmount != null) { setTotalAmount(String(parsed.totalAmount)); filled.push("tutar"); }
       if (parsed.odometer != null) { setOdometer(String(parsed.odometer)); filled.push("KM"); }
-      setParseHint(filled.length > 0 ? `Otomatik dolduruldu: ${filled.join(", ")}` : "Fiş okundu ama veri çıkarılamadı.");
+      setParseHint(filled.length > 0 ? `Otomatik dolduruldu: ${filled.join(", ")}` : "Fiş okundu ama veri çıkarılamadı, lütfen elle girin.");
     } catch {
-      setParseHint("AI okuma başarısız, lütfen elle girin.");
+      setParseHint("Okuma başarısız, lütfen elle girin.");
     } finally {
       setParsing(false);
     }
