@@ -46,6 +46,14 @@
     },
     "plugins": [
       [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "15.0"
+          }
+        }
+      ],
+      [
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "TekerTakip, sefer sırasında arka planda konumunuzu paylaşmak için her zaman konum erişimi ister.",
