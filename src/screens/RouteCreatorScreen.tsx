@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingTop: 16, paddingBottom: 14,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
   },
-  backBtn: { paddingHorizontal: 8, paddingVertical: 4 },
+  backBtn: { minWidth: 44, minHeight: 44, justifyContent: "center", paddingHorizontal: 8, paddingVertical: 10 },
   backText: { color: "#94a3b8", fontSize: 14 },
   headerTitle: { color: "#fff", fontSize: 16, fontWeight: "700" },
   scroll: { flex: 1 },

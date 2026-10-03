@@ -21,8 +21,10 @@ export default function ArizaScreen({ onBack }: Props) {
       const result = await ImagePicker.launchCameraAsync({ quality: 0.7 });
       if (!result.canceled && result.assets[0]) setPhoto({ uri: result.assets[0].uri });
     } else {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) { Alert.alert("İzin gerekli", "Fotoğraf kitaplığı erişimi için izin verin."); return; }
+      if (Platform.OS !== "android") {
+        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!perm.granted) { Alert.alert("İzin gerekli", "Fotoğraf kitaplığı erişimi için izin verin."); return; }
+      }
       const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.7, mediaTypes: ["images"] });
       if (!result.canceled && result.assets[0]) setPhoto({ uri: result.assets[0].uri });
     }
@@ -112,7 +114,7 @@ const s = StyleSheet.create({
   backText: { color: "#fff", fontSize: 22 },
   title: { color: "#fff", fontSize: 18, fontWeight: "800" },
   content: { padding: 24, gap: 12 },
-  label: { fontSize: 11, fontWeight: "700", color: "#94a3b8", letterSpacing: 1.5, marginTop: 8 },
+  label: { fontSize: 13, fontWeight: "600", color: "#64748b", letterSpacing: 0.2, marginTop: 8 },
   input: { backgroundColor: "#fff", borderWidth: 1.5, borderColor: "#e2e8f0", borderRadius: 12, padding: 14, fontSize: 16, color: "#1e293b" },
   photoRow: { flexDirection: "row", gap: 10 },
   photoBtn: { backgroundColor: "#fff", borderWidth: 1.5, borderColor: "#e2e8f0", borderRadius: 12, padding: 16, alignItems: "center" },
