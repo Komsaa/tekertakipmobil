@@ -72,9 +72,12 @@ export default function SeferScreen({ onBack }: Props) {
 
   // Sefer ekranında ekranı uyanık tut + konum takibini başlat
   useEffect(() => {
-    KeepAwake.activateKeepAwakeAsync();
+    if (!route) return;
+    let cancelled = false;
+    KeepAwake.activateKeepAwakeAsync().catch(() => {});
 
-    startBackgroundLocation().catch((err: Error) => {
+    startBackgroundLocation(() => cancelled).catch((err: Error) => {
+      if (cancelled) return;
       if (err.message === "background_denied") {
         Alert.alert(
           "Konum İzni",
@@ -92,16 +95,13 @@ export default function SeferScreen({ onBack }: Props) {
     });
 
     return () => {
+      cancelled = true;
       KeepAwake.deactivateKeepAwake();
       stopBackgroundLocation().catch(() => {});
     };
-  }, []);
-
-  // Güzergah yüklenince ilk durağa otomatik navigasyon aç
-  useEffect(() => {
-    if (route?.stops?.[0]) openNavigation(route.stops[0]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [route?.id]);
+
+  // İlk açılışta haritaya yönlendirme, konum açıklamasını kesmemelidir.
 
   function toggleBoarded(passengerId: string) {
     Vibration.vibrate(40);
@@ -180,7 +180,7 @@ export default function SeferScreen({ onBack }: Props) {
       status: boarded.has(p.id) ? "boarded" : "absent",
     }));
     try {
-      await authFetch("/api/mobile/sefer/attendance", {
+      const response = await authFetch("/api/mobile/sefer/attendance", {
         method: "POST",
         body: JSON.stringify({
           routeId: route.id,
@@ -190,8 +190,13 @@ export default function SeferScreen({ onBack }: Props) {
           nextStopId: nextStop?.id ?? null,
         }),
       });
-    } catch { /* offline — devam et */ }
-    setSaving(false);
+      if (!response.ok) throw new Error("attendance_failed");
+    } catch {
+      Alert.alert("Yoklama kaydedilemedi", "Durak ilerletilmedi. Bağlantınızı kontrol edip yeniden deneyin.");
+      return;
+    } finally {
+      setSaving(false);
+    }
 
     if (!isLast) {
       setStopIndex((i) => i + 1);
@@ -398,11 +403,11 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 14,
   },
-  backBtn: { width: 44, alignItems: "flex-start" },
+  backBtn: { width: 44, minHeight: 44, justifyContent: "center", alignItems: "flex-start" },
   backBtnText: { color: "#94a3b8", fontSize: 26 },
   headerCenter: { flex: 1, alignItems: "center" },
   routeName: { color: "#fff", fontSize: 17, fontWeight: "700" },
-  stopCounter: { color: "#64748b", fontSize: 12, marginTop: 3 },
+  stopCounter: { color: "#cbd5e1", fontSize: 13, marginTop: 3 },
 
   // Progress
   progressBar: {

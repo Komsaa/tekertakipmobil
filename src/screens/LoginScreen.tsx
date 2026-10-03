@@ -23,8 +23,11 @@ export default function LoginScreen({ onDriverLogin, onManagerLogin, onVeliLogin
   async function handleLogin() {
     if (!canSubmit) return;
     setLoading(true);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
     try {
       const res = await fetch(`${API_BASE}/api/mobile/unified-auth`, {
+        signal: controller.signal,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: username.trim(), password: password.trim() }),
@@ -47,10 +50,13 @@ export default function LoginScreen({ onDriverLogin, onManagerLogin, onVeliLogin
         await setSecure("managerToken", data.token);
         await setSecure("managerUsername", data.username);
         onManagerLogin();
+      } else {
+        Alert.alert("Giriş Hatası", "Hesap türü tanınmadı. Firma yöneticinizle iletişime geçin.");
       }
     } catch {
       Alert.alert("Bağlantı Hatası", "Sunucuya ulaşılamadı.");
     } finally {
+      clearTimeout(timeout);
       setLoading(false);
     }
   }
@@ -97,7 +103,10 @@ export default function LoginScreen({ onDriverLogin, onManagerLogin, onVeliLogin
                 placeholder="••••••"
                 placeholderTextColor="#94a3b8"
                 secureTextEntry
-                keyboardType="number-pad"
+                keyboardType="default"
+                autoCapitalize="none"
+                autoCorrect={false}
+                accessibilityLabel="Şifre veya PIN"
               />
             </View>
 
@@ -133,7 +142,7 @@ const styles = StyleSheet.create({
   },
   brand: { fontSize: 36, fontWeight: "900", color: "#fff", letterSpacing: 2 },
   brandRed: { color: "#DC2626" },
-  tagline: { color: "#475569", fontSize: 13, marginTop: 4, letterSpacing: 0.5 },
+  tagline: { color: "#cbd5e1", fontSize: 14, marginTop: 8, letterSpacing: 0.2 },
 
   card: {
     backgroundColor: "#fff", borderRadius: 24, padding: 28,
@@ -144,7 +153,7 @@ const styles = StyleSheet.create({
 
   field: { marginBottom: 18 },
   fieldLabel: {
-    fontSize: 11, fontWeight: "700", color: "#94a3b8",
+    fontSize: 13, fontWeight: "600", color: "#64748b",
     marginBottom: 8, textTransform: "uppercase", letterSpacing: 1,
   },
   input: {
@@ -155,5 +164,5 @@ const styles = StyleSheet.create({
   loginBtnDisabled: { backgroundColor: "#fca5a5" },
   loginBtnText: { color: "#fff", fontWeight: "800", fontSize: 16, letterSpacing: 0.3 },
 
-  footer: { textAlign: "center", color: "#1e3a5f", fontSize: 12, marginTop: 28 },
+  footer: { textAlign: "center", color: "#cbd5e1", fontSize: 13, marginTop: 28 },
 });

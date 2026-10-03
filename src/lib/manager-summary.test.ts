@@ -1,0 +1,10 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {needsAssignment,summarizeJobs,filterJobs} from "./manager-summary";
+const base={id:"1",title:"Okul",startTime:"08:00",driver:"Örnek Şoför",plate:"45 HB 123",status:"planned"};
+test("empty day has no invented work",()=>assert.deepEqual(summarizeJobs([]),{attention:0,active:0,completed:0,planned:0}));
+test("missing driver is actionable",()=>assert.equal(needsAssignment({...base,driver:"-"}),true));
+test("missing vehicle is actionable",()=>assert.equal(needsAssignment({...base,plate:""}),true));
+test("completed or cancelled jobs are not assignment alerts",()=>{for(const status of ["completed","cancelled"])assert.equal(needsAssignment({...base,status,driver:"-"}),false);});
+test("summary keeps actual statuses",()=>assert.deepEqual(summarizeJobs([base,{...base,status:"active",plate:"-"},{...base,status:"completed"}]),{attention:1,active:1,completed:1,planned:1}));
+test("filters keep source unchanged",()=>{const jobs=[base,{...base,id:"2",status:"active",driver:"-"}];assert.equal(filterJobs(jobs,"attention")[0].id,"2");assert.equal(filterJobs(jobs,"active").length,1);assert.equal(filterJobs(jobs,"completed").length,0);assert.equal(filterJobs(jobs,"all").length,2);assert.equal(jobs.length,2);});

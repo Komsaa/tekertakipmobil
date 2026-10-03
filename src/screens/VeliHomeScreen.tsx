@@ -47,14 +47,21 @@ export default function VeliHomeScreen({ onLogout }: Props) {
   const fetchStatus = useCallback(async () => {
     try {
       const token = await getSecure("veliToken");
-      if (!token) return;
+      if (!token) { setLoading(false); onLogout(); return; }
       const res = await fetch(`${API_BASE}/api/mobile/veli/status`, {
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       });
+      if (res.status === 401 || res.status === 403) {
+        setStatus(null);
+        setVeliToken(null);
+        await deleteSecureMany(["veliToken", "veliData"]);
+        onLogout();
+        return;
+      }
       if (res.ok) setStatus(await res.json());
     } catch { /* sessiz */ }
     setLoading(false);
-  }, []);
+  }, [onLogout]);
 
   useEffect(() => {
     fetchStatus();
@@ -63,17 +70,17 @@ export default function VeliHomeScreen({ onLogout }: Props) {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [fetchStatus]);
 
-  useEffect(() => { registerPushToken(); }, []);
+  useEffect(() => { registerPushToken().catch(() => {}); }, []);
 
   async function registerPushToken() {
     if (!Device.isDevice) return;
-    const { status: perm } = await Notifications.requestPermissionsAsync();
-    if (perm !== "granted") return;
     if (Platform.OS === "android") {
       await Notifications.setNotificationChannelAsync("default", {
         name: "default", importance: Notifications.AndroidImportance.MAX,
       });
     }
+    const { status: perm } = await Notifications.requestPermissionsAsync();
+    if (perm !== "granted") return;
     const token = (await Notifications.getExpoPushTokenAsync({ projectId: "a59269a7-9936-4592-8720-e20c0b305ce8" })).data;
     const vt = await getSecure("veliToken");
     if (!vt) return;
@@ -85,10 +92,10 @@ export default function VeliHomeScreen({ onLogout }: Props) {
   }
 
   async function handleLogout() {
-    Alert.alert("Cikis", "Oturumu kapatmak istiyor musunuz?", [
-      { text: "Iptal", style: "cancel" },
+    Alert.alert("Çıkış", "Oturumu kapatmak istiyor musunuz?", [
+      { text: "İptal", style: "cancel" },
       {
-        text: "Cikis Yap", style: "destructive",
+        text: "Çıkış Yap", style: "destructive",
         onPress: async () => {
           await deleteSecureMany(["veliToken", "veliData"]);
           onLogout();
@@ -99,22 +106,28 @@ export default function VeliHomeScreen({ onLogout }: Props) {
 
   async function handleDeleteAccount() {
     Alert.alert(
-      "Hesabi Sil",
-      "Servis takip eriisiminiz silinecek. Yoneticinizden yeni giris bilgisi almaniz gerekecek. Devam edilsin mi?",
+      "Mobil erişimi kaldır",
+      "Servis takip erişiminiz silinecek. Yöneticinizden yeni giriş bilgisi almanız gerekecek. Devam edilsin mi?",
       [
-        { text: "Vazgec", style: "cancel" },
+        { text: "Vazgeç", style: "cancel" },
         {
-          text: "Hesabi Sil", style: "destructive",
+          text: "Erişimi kaldır", style: "destructive",
           onPress: async () => {
+            try {
             const token = await getSecure("veliToken");
-            if (token) {
-              await fetch(`${API_BASE}/api/mobile/account/delete?role=veli`, {
+            if (!token) throw new Error("missing_token");
+            {
+              const response = await fetch(`${API_BASE}/api/mobile/account/delete?role=veli`, {
                 method: "DELETE",
                 headers: { Authorization: `Bearer ${token}` },
-              }).catch(() => {});
+              });
+              if (!response.ok) throw new Error("access_removal_failed");
             }
             await deleteSecureMany(["veliToken", "veliData"]);
             onLogout();
+            } catch {
+              Alert.alert("İşlem tamamlanamadı", "Mobil erişim kaldırılamadı. Bağlantınızı kontrol edip yeniden deneyin.");
+            }
           },
         },
       ]
@@ -126,7 +139,7 @@ export default function VeliHomeScreen({ onLogout }: Props) {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingBox}>
           <ActivityIndicator size="large" color="#DC2626" />
-          <Text style={styles.loadingText}>Yukleniyor...</Text>
+          <Text style={styles.loadingText}>Yükleniyor...</Text>
         </View>
       </SafeAreaView>
     );
@@ -141,11 +154,11 @@ export default function VeliHomeScreen({ onLogout }: Props) {
             <Text style={styles.headerBrand}>teker<Text style={styles.headerBrandRed}>takip</Text></Text>
           </View>
           <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
-            <Text style={styles.logoutText}>Cikis</Text>
+            <Text style={styles.logoutText}>Çıkış</Text>
           </TouchableOpacity>
         </View>
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center", gap: 16 }}>
-          <Text style={{ color: "#64748b", fontSize: 15 }}>Durum alinamadi</Text>
+          <Text style={{ color: "#64748b", fontSize: 15 }}>Durum alınamadı</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={fetchStatus}>
             <Text style={{ color: "#fff", fontWeight: "700" }}>Tekrar Dene</Text>
           </TouchableOpacity>
@@ -159,7 +172,7 @@ export default function VeliHomeScreen({ onLogout }: Props) {
   const statusConfig = {
     waiting: { bg: "#1e293b", text: "#94a3b8", border: "#334155", icon: "SS", label: "Bekliyor" },
     enroute: { bg: "#1e3a8a", text: "#bfdbfe", border: "#2563eb", icon: ">>", label: "Yolda" },
-    arrived: { bg: "#14532d", text: "#bbf7d0", border: "#16a34a", icon: "OK", label: "Duraginizda" },
+    arrived: { bg: "#14532d", text: "#bbf7d0", border: "#16a34a", icon: "OK", label: "Durağınızda" },
     passed:  { bg: "#1e293b", text: "#94a3b8", border: "#475569", icon: "V",  label: "Gecti" },
     missed:  { bg: "#7f1d1d", text: "#fca5a5", border: "#DC2626", icon: "!!", label: "Binmedi" },
   };
@@ -182,11 +195,11 @@ export default function VeliHomeScreen({ onLogout }: Props) {
           <Text style={styles.routeLabel}>{status.route.name}</Text>
         </View>
         <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
-          <Text style={styles.logoutText}>Cikis</Text>
+          <Text style={styles.logoutText}>Çıkış</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Cocuk adi banner */}
+      {/* Çocuk adı banner */}
       <View style={styles.childBanner}>
         <View style={styles.childAvatarBox}>
           <Text style={styles.childAvatarText}>
@@ -205,7 +218,7 @@ export default function VeliHomeScreen({ onLogout }: Props) {
         </View>
       </View>
 
-      {/* Uyari bantlari */}
+      {/* Uyarı bantları */}
       {missedBoarding && (
         <View style={styles.alertBanner}>
           <Text style={styles.alertText}>Duraginiz gecildi — {status.passenger.name} servise binmedi!</Text>
@@ -217,7 +230,7 @@ export default function VeliHomeScreen({ onLogout }: Props) {
         </View>
       )}
 
-      {/* Harita — her zaman gorunur */}
+      {/* Harita — her zaman görünür */}
       <View style={styles.mapContainer}>
         {mapUri ? (
           <WebView
@@ -227,7 +240,7 @@ export default function VeliHomeScreen({ onLogout }: Props) {
             renderLoading={() => (
               <View style={styles.mapLoading}>
                 <ActivityIndicator size="large" color="#DC2626" />
-                <Text style={styles.mapLoadingText}>Harita yukleniyor...</Text>
+                <Text style={styles.mapLoadingText}>Harita yükleniyor...</Text>
               </View>
             )}
           />
@@ -249,7 +262,7 @@ export default function VeliHomeScreen({ onLogout }: Props) {
         {status.driverLocation?.isTracking && (
           <View style={styles.gpsIndicator}>
             <View style={styles.gpsDot} />
-            <Text style={styles.gpsText}>Canli GPS</Text>
+            <Text style={styles.gpsText}>Canlı GPS</Text>
           </View>
         )}
       </View>
@@ -267,11 +280,11 @@ export default function VeliHomeScreen({ onLogout }: Props) {
           </View>
         </View>
 
-        {/* Sefer aktifse su anki durak */}
+        {/* Sefer aktifse şu anki durak */}
         {status.seferStarted && status.currentStop && (
           <View style={[styles.stopRow, { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: "#f1f5f9" }]}>
             <View style={styles.stopLeft}>
-              <Text style={styles.stopLabel}>Arac simdi</Text>
+              <Text style={styles.stopLabel}>Araç şimdi</Text>
               <Text style={styles.stopName} numberOfLines={1}>{status.currentStop.name}</Text>
             </View>
             <View style={[styles.stopTimeBox, { backgroundColor: "#eff6ff" }]}>
@@ -286,7 +299,7 @@ export default function VeliHomeScreen({ onLogout }: Props) {
         </TouchableOpacity>
 
         <TouchableOpacity onPress={handleDeleteAccount} style={styles.deleteBtn}>
-          <Text style={styles.deleteBtnText}>Hesabi Sil</Text>
+          <Text style={styles.deleteBtnText}>Mobil erişimi kaldır</Text>
         </TouchableOpacity>
       </View>
 
@@ -309,9 +322,9 @@ const styles = StyleSheet.create({
   headerBrandRow: { flexDirection: "row", alignItems: "center", gap: 7 },
   headerBrand: { color: "#fff", fontSize: 15, fontWeight: "900", letterSpacing: 1 },
   headerBrandRed: { color: "#DC2626" },
-  routeLabel: { color: "#475569", fontSize: 11, marginLeft: 1 },
-  logoutBtn: { paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: "#334155", borderRadius: 8 },
-  logoutText: { color: "#64748b", fontSize: 12 },
+  routeLabel: { color: "#cbd5e1", fontSize: 13, marginLeft: 1 },
+  logoutBtn: { paddingHorizontal: 14, paddingVertical: 12, minHeight: 44, borderWidth: 1, borderColor: "#475569", borderRadius: 12 },
+  logoutText: { color: "#cbd5e1", fontSize: 13 },
 
   /* Cocuk banner */
   childBanner: {
@@ -326,7 +339,7 @@ const styles = StyleSheet.create({
   childAvatarText: { color: "#fff", fontWeight: "900", fontSize: 18 },
   childInfo: { flex: 1 },
   childName: { color: "#fff", fontSize: 18, fontWeight: "800" },
-  childStopLabel: { color: "#475569", fontSize: 12, marginTop: 1 },
+  childStopLabel: { color: "#cbd5e1", fontSize: 13, marginTop: 3 },
   statusBadge: {
     paddingHorizontal: 10, paddingVertical: 5,
     borderRadius: 20, borderWidth: 1,

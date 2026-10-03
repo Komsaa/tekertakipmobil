@@ -39,3 +39,10 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Local manager verification export
+/artifacts/manager-review/
+
+# Private signing and Play publishing credentials
+/google-service-account.json
+/credentials.json

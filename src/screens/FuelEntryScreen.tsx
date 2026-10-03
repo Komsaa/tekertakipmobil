@@ -61,7 +61,7 @@ export default function FuelEntryScreen({ onBack, onSuccess }: Props) {
   async function pickPhoto(source: "camera" | "gallery") {
     const perm = source === "camera"
       ? await ImagePicker.requestCameraPermissionsAsync()
-      : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      : Platform.OS === "android" ? { granted: true } : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) { Alert.alert("İzin Gerekli", "Fotoğraf erişimi için izin verin."); return; }
 
     const result = source === "camera"
@@ -237,6 +237,7 @@ export default function FuelEntryScreen({ onBack, onSuccess }: Props) {
   );
 }
 
+import { fieldLabel } from "../components/designTokens";
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8fafc" },
   header: {
@@ -247,7 +248,7 @@ const s = StyleSheet.create({
   backText: { color: "#fff", fontSize: 22 },
   title: { color: "#fff", fontSize: 18, fontWeight: "800" },
   content: { padding: 24, gap: 10 },
-  label: { fontSize: 11, fontWeight: "700", color: "#94a3b8", letterSpacing: 1.5, marginTop: 8 },
+  label: fieldLabel,
   photoRow: { flexDirection: "row", gap: 10 },
   photoBtn: {
     backgroundColor: "#fff", borderRadius: 14, padding: 18,

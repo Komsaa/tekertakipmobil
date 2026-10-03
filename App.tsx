@@ -10,6 +10,7 @@ import ManagerHomeScreen from "./src/screens/ManagerHomeScreen";
 import SeferScreen from "./src/screens/SeferScreen";
 import VeliHomeScreen from "./src/screens/VeliHomeScreen";
 import RouteCreatorScreen from "./src/screens/RouteCreatorScreen";
+import PrivacyLinks from "./src/components/PrivacyLinks";
 
 type Screen = "login" | "home" | "fuel" | "ariza" | "manager" | "sefer" | "veli" | "routeCreator";
 
@@ -25,6 +26,10 @@ async function validateToken(token: string, endpoint: string): Promise<boolean> 
 }
 
 export default function App() {
+  return <View style={{ flex: 1 }}><View style={{ flex: 1 }}><AppScreens /></View><PrivacyLinks /></View>;
+}
+
+function AppScreens() {
   const [screen, setScreen] = useState<Screen | null>(null);
 
   useEffect(() => {

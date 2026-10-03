@@ -1,12 +1,13 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   SafeAreaView, Alert, ActivityIndicator, RefreshControl,
-  TextInput, Image, Linking, Platform, FlatList,
+  TextInput, Image, Linking, Platform, FlatList, AppState,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { getSecure, deleteSecureMany } from "../lib/secureStorage";
 import { API_BASE } from "../api/config";
+import { summarizeJobs, filterJobs, needsAssignment, type JobFilter } from "../lib/manager-summary";
 
 type Job = { id: string; title: string; startTime: string; driver: string; plate: string; status: string };
 type Report = { id: string; description: string; driver: string; plate: string; createdAt: string };
@@ -40,6 +41,11 @@ export default function ManagerHomeScreen({ onLogout }: Props) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState<Tab>("dashboard");
+  const [dashboardError, setDashboardError] = useState("");
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const [jobFilter, setJobFilter] = useState<JobFilter>("all");
+  const dashboardBusy = useRef(false);
+  const mounted = useRef(true);
 
   // Şöförler
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -84,10 +90,12 @@ export default function ManagerHomeScreen({ onLogout }: Props) {
   function today() { return new Date().toISOString().slice(0, 10); }
 
   useEffect(() => {
+    mounted.current = true;
     getSecure("managerUsername").then((u) => u && setUsername(u));
     loadDashboard();
-    const iv = setInterval(loadDashboard, 30000);
-    return () => clearInterval(iv);
+    const iv = setInterval(() => { if (AppState.currentState === "active") void loadDashboard(); }, 30000);
+    const listener = AppState.addEventListener("change", state => { if (state === "active") void loadDashboard(); });
+    return () => { mounted.current = false; clearInterval(iv); listener.remove(); };
   }, []);
 
   useEffect(() => {
@@ -107,11 +115,19 @@ export default function ManagerHomeScreen({ onLogout }: Props) {
   }
 
   async function loadDashboard() {
+    if (dashboardBusy.current) return;
+    dashboardBusy.current = true;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
     try {
-      const res = await fetch(`${API_BASE}/api/mobile/manager/dashboard`, { headers: await authHeader() });
+      const res = await fetch(`${API_BASE}/api/mobile/manager/dashboard`, { headers: await authHeader(), signal: controller.signal });
       if (res.status === 401) { await silentLogout(); return; }
-      if (res.ok) setData(await res.json());
-    } catch { /* sessiz */ } finally { setLoading(false); setRefreshing(false); }
+      if (!res.ok) throw new Error("Dashboard request failed");
+      const next = await res.json();
+      if (!next?.today || !Array.isArray(next.today.jobs) || !Array.isArray(next.openReports) || !Array.isArray(next.recentFuel) || !next.monthFuel) throw new Error("Invalid dashboard");
+      if (mounted.current) { setData(next); setDashboardError(""); setUpdatedAt(new Date()); }
+    } catch { if (mounted.current) setDashboardError("Güncel veriler alınamadı. Bağlantınızı kontrol edip tekrar deneyin."); }
+    finally { clearTimeout(timeout); dashboardBusy.current = false; if (mounted.current) { setLoading(false); setRefreshing(false); } }
   }
 
   async function loadDrivers() {
@@ -212,8 +228,10 @@ export default function ManagerHomeScreen({ onLogout }: Props) {
   }
 
   async function pickPhoto() {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") { Alert.alert("İzin Gerekli", "Galeri erişim izni verilmedi."); return; }
+    if (Platform.OS !== "android") {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") { Alert.alert("İzin Gerekli", "Galeri erişim izni verilmedi."); return; }
+    }
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.7 });
     if (!result.canceled && result.assets[0]) {
       const a = result.assets[0];
@@ -275,6 +293,8 @@ export default function ManagerHomeScreen({ onLogout }: Props) {
 
   const d = data;
   const activeJobs = d?.today.jobs.filter((j) => j.status === "active") ?? [];
+  const jobSummary = summarizeJobs(d?.today.jobs ?? []);
+  const visibleJobs = filterJobs(d?.today.jobs ?? [], jobFilter);
   const filteredDrivers = drivers.filter((dr) =>
     dr.name.toLowerCase().includes(driverSearch.toLowerCase()) ||
     (dr.plate ?? "").toLowerCase().includes(driverSearch.toLowerCase())
@@ -310,7 +330,7 @@ export default function ManagerHomeScreen({ onLogout }: Props) {
       {/* Tab bar */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.tabBarWrap} contentContainerStyle={s.tabBar}>
         {TABS.map(([key, label]) => (
-          <TouchableOpacity key={key} style={[s.tab, tab === key && s.tabActive]} onPress={() => setTab(key)}>
+          <TouchableOpacity key={key} accessibilityRole="tab" accessibilityState={{selected:tab===key}} style={[s.tab, tab === key && s.tabActive]} onPress={() => setTab(key)}>
             <Text style={[s.tabText, tab === key && s.tabTextActive]}>{label}</Text>
           </TouchableOpacity>
         ))}
@@ -322,8 +342,18 @@ export default function ManagerHomeScreen({ onLogout }: Props) {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {/* ── DASHBOARD ── */}
+        {dashboardError !== "" && <View style={s.alertBanner} accessibilityRole="alert"><Text style={s.alertBannerText}>{dashboardError}</Text>{d && <Text style={s.alertBannerSub}>Aşağıdaki özet son başarılı yüklemeye aittir; güncel olmayabilir.</Text>}<TouchableOpacity accessibilityRole="button" onPress={() => { setRefreshing(true); void loadDashboard(); }} style={s.quickAction}><Text style={s.quickActionText}>Tekrar dene</Text></TouchableOpacity></View>}
         {tab === "dashboard" && d && (
           <>
+            <View style={s.ownerBrief}>
+              <Text style={s.ownerTitle}>Bugünün yönetim özeti</Text>
+              <Text style={s.ownerSubtitle}>{d.today.date}</Text>
+              <Text style={s.ownerStatus}>{jobSummary.active} aktif · {jobSummary.completed} tamamlanan · {jobSummary.planned} planlanan sefer</Text>
+              <Text style={s.ownerSubtitle}>{updatedAt ? `Son başarılı güncelleme: ${updatedAt.toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"})}` : "Henüz güncellenmedi"}</Text>
+            </View>
+            {jobSummary.attention > 0 && <View style={s.alertBanner}><Text style={s.alertBannerText}>{jobSummary.attention} seferde araç veya şoför ataması eksik</Text>{filterJobs(d.today.jobs,"attention").slice(0,3).map(job=><Text key={job.id} style={s.alertBannerSub}>{job.startTime} · {job.title}</Text>)}<Text style={s.alertBannerSub}>Atamaları web panelindeki İşler ve Seferler ekranından tamamlayın.</Text></View>}
+            <Text style={s.sectionTitle}>Hızlı işlemler</Text>
+            <View style={s.quickActions}>{([["drivers","Şoförlere ulaş"],["payment","Ödeme / gider kaydet"],["maintenance","Bakımı incele"],["reports","Arızaları incele"]] as [Tab,string][]).map(([target,label])=><TouchableOpacity key={target} accessibilityRole="button" style={s.quickAction} onPress={()=>setTab(target)}><Text style={s.quickActionText}>{label}</Text></TouchableOpacity>)}</View>
             {/* Acil: Açık arıza uyarısı */}
             {d.openReports.length > 0 && (
               <TouchableOpacity style={s.alertBanner} onPress={() => setTab("reports")}>
@@ -359,7 +389,7 @@ export default function ManagerHomeScreen({ onLogout }: Props) {
               </View>
               <View style={[s.stat, { backgroundColor: "#16a34a" }]}>
                 <Text style={s.statVal}>{d.activeDriverCount}</Text>
-                <Text style={s.statLbl}>Yolda Şöför</Text>
+                <Text style={s.statLbl}>Takibi açık şoför</Text>
               </View>
             </View>
             <View style={s.statRow}>
@@ -374,12 +404,14 @@ export default function ManagerHomeScreen({ onLogout }: Props) {
             </View>
 
             {/* Tüm bugünkü seferler */}
+            <Text style={s.cardSub}>Yakıt tutarı bu ay kaydedilen alımlardır; toplam işletme gideri veya kâr değildir.</Text>
             <Text style={s.sectionTitle}>📋 Bugünkü Seferler</Text>
+            <View style={s.quickActions}>{([["all","Tümü"],["attention","Eksik atama"],["active","Aktif"],["completed","Tamamlanan"]] as [JobFilter,string][]).map(([key,label])=><TouchableOpacity key={key} accessibilityRole="button" accessibilityState={{selected:jobFilter===key}} style={[s.quickAction,jobFilter===key&&s.filterSelected]} onPress={()=>setJobFilter(key)}><Text style={s.quickActionText}>{label}</Text></TouchableOpacity>)}</View>
             <Text style={s.dateLabel}>{d.today.date}</Text>
-            {d.today.jobs.length === 0 ? (
-              <Text style={s.empty}>Bugün sefer yok</Text>
+            {visibleJobs.length === 0 ? (
+              <Text style={s.empty}>{d.today.jobs.length===0 ? "Bugün kayıtlı sefer yok" : "Bu filtreye uygun sefer yok"}</Text>
             ) : (
-              d.today.jobs.map((j) => (
+              visibleJobs.map((j) => (
                 <View key={j.id} style={s.card}>
                   <View style={s.cardRow}>
                     <Text style={s.cardTime}>{j.startTime}</Text>
@@ -395,6 +427,7 @@ export default function ManagerHomeScreen({ onLogout }: Props) {
                   </View>
                   <Text style={s.cardTitle}>{j.title}</Text>
                   <Text style={s.cardSub}>{j.driver} · {j.plate}</Text>
+                  {needsAssignment(j)&&<Text style={s.alertBannerSub}>Araç veya şoför ataması eksik</Text>}
                 </View>
               ))
             )}
@@ -782,16 +815,24 @@ export default function ManagerHomeScreen({ onLogout }: Props) {
 }
 
 const s = StyleSheet.create({
+  ownerBrief:{backgroundColor:"#1B2437",borderRadius:18,padding:20,marginBottom:16},
+  ownerTitle:{fontSize:22,fontWeight:"800",color:"#fff"},
+  ownerSubtitle:{fontSize:12,color:"#cbd5e1",marginTop:8},
+  ownerStatus:{fontSize:15,color:"#fff",lineHeight:23,marginTop:14},
+  quickActions:{flexDirection:"row",flexWrap:"wrap",gap:8,marginBottom:16},
+  quickAction:{backgroundColor:"#fff",borderWidth:1,borderColor:"#e2e8f0",borderRadius:12,paddingHorizontal:14,paddingVertical:12,minHeight:44,justifyContent:"center"},
+  quickActionText:{color:"#1B2437",fontSize:13,fontWeight:"600"},
+  filterSelected:{backgroundColor:"#fee2e2",borderColor:"#dc2626"},
   container: { flex: 1, backgroundColor: "#f1f5f9" },
   header: { backgroundColor: "#1B2437", paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   greeting: { color: "#94a3b8", fontSize: 13 },
   name: { color: "#fff", fontSize: 20, fontWeight: "800", marginTop: 2 },
-  logoutBtn: { paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: "#334155", borderRadius: 8 },
-  logoutText: { color: "#94a3b8", fontSize: 13 },
+  logoutBtn: { paddingHorizontal: 14, paddingVertical: 12, minHeight: 44, borderWidth: 1, borderColor: "#475569", borderRadius: 12 },
+  logoutText: { color: "#cbd5e1", fontSize: 13 },
 
   tabBarWrap: { backgroundColor: "#1B2437", flexGrow: 0 },
   tabBar: { paddingHorizontal: 12, paddingBottom: 12, flexDirection: "row", gap: 8 },
-  tab: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, alignItems: "center", backgroundColor: "rgba(255,255,255,0.08)" },
+  tab: { minHeight: 44, justifyContent: "center", paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12, alignItems: "center", backgroundColor: "rgba(255,255,255,0.08)" },
   tabActive: { backgroundColor: "#DC2626" },
   tabText: { color: "#94a3b8", fontWeight: "600", fontSize: 13 },
   tabTextActive: { color: "#fff" },

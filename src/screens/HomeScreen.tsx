@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from "react";
 import {
-  View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Alert, ScrollView,
+  View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Alert, ScrollView, useWindowDimensions,
 } from "react-native";
 import { getSecure, deleteSecureMany } from "../lib/secureStorage";
 import { authFetch } from "../api/client";
 import { LogoIcon } from "../components/Logo";
 import { stopBackgroundLocation } from "../lib/locationTask";
+import ActionIcon from "../components/ActionIcon";
+import { palette } from "../components/designTokens";
 
 type Driver = {
   id: string;
@@ -23,6 +25,8 @@ type Props = {
 
 export default function HomeScreen({ onLogout, onFuelEntry, onAriza, onSefer, onRouteCreate }: Props) {
   const [driver, setDriver] = useState<Driver | null>(null);
+  const { width, fontScale } = useWindowDimensions();
+  const compact = width < 420 || fontScale > 1.2;
 
   useEffect(() => {
     getSecure("driverData").then((s) => {
@@ -36,6 +40,7 @@ export default function HomeScreen({ onLogout, onFuelEntry, onAriza, onSefer, on
       {
         text: "Çıkış Yap", style: "destructive",
         onPress: async () => {
+          await stopBackgroundLocation().catch(() => {});
           await deleteSecureMany(["mobileToken", "driverData"]);
           onLogout();
         },
@@ -45,17 +50,22 @@ export default function HomeScreen({ onLogout, onFuelEntry, onAriza, onSefer, on
 
   async function handleDeleteAccount() {
     Alert.alert(
-      "Hesabı Sil",
+      "Mobil erişimi kaldır",
       "Mobil erişiminiz kalıcı olarak silinecek. Yöneticiniz size yeni giriş bilgisi vermeden uygulamayı kullanamazsınız. Devam edilsin mi?",
       [
         { text: "Vazgeç", style: "cancel" },
         {
-          text: "Hesabı Sil", style: "destructive",
+          text: "Erişimi kaldır", style: "destructive",
           onPress: async () => {
+            try {
             await stopBackgroundLocation().catch(() => {});
-            await authFetch("/api/mobile/account/delete?role=driver", { method: "DELETE" });
+            const response = await authFetch("/api/mobile/account/delete?role=driver", { method: "DELETE" });
+            if (!response.ok) throw new Error("access_removal_failed");
             await deleteSecureMany(["mobileToken", "driverData"]);
             onLogout();
+            } catch {
+              Alert.alert("İşlem tamamlanamadı", "Mobil erişim kaldırılamadı. Bağlantınızı kontrol edip yeniden deneyin.");
+            }
           },
         },
       ]
@@ -75,7 +85,7 @@ export default function HomeScreen({ onLogout, onFuelEntry, onAriza, onSefer, on
           <LogoIcon size={36} color="#fff" />
           <Text style={styles.headerBrand}>teker<Text style={styles.headerBrandRed}>takip</Text></Text>
         </View>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Oturumu kapat" onPress={handleLogout} style={styles.logoutBtn}>
           <Text style={styles.logoutText}>Çıkış</Text>
         </TouchableOpacity>
       </View>
@@ -99,19 +109,19 @@ export default function HomeScreen({ onLogout, onFuelEntry, onAriza, onSefer, on
         </View>
 
         {/* Sefer Başlat — hero buton */}
-        <TouchableOpacity style={styles.seferHero} onPress={onSefer} activeOpacity={0.88}>
-          <Text style={styles.seferHeroIcon}>🚌</Text>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Sefer başlat, durak yoklama ve navigasyon" style={styles.seferHero} onPress={onSefer} activeOpacity={0.88}>
+          <ActionIcon name="bus" color="#fff" size={44} />
           <Text style={styles.seferHeroTitle}>Sefer Başlat</Text>
           <Text style={styles.seferHeroSub}>Durak yoklama ve navigasyon</Text>
         </TouchableOpacity>
 
         {/* İkincil butonlar */}
         <Text style={styles.sectionLabel}>DİĞER İŞLEMLER</Text>
-        <View style={styles.grid}>
+        <View style={[styles.grid, compact && { flexDirection: "column" }]}>
 
           <TouchableOpacity style={[styles.actionCard, styles.actionFuel]} onPress={onFuelEntry} activeOpacity={0.85}>
             <View style={styles.actionIconWrap}>
-              <Text style={styles.actionIcon}>⛽</Text>
+              <ActionIcon name="fuel" />
             </View>
             <Text style={styles.actionTitle}>Yakıt Girişi</Text>
             <Text style={styles.actionSub}>Fiş + KM</Text>
@@ -119,7 +129,7 @@ export default function HomeScreen({ onLogout, onFuelEntry, onAriza, onSefer, on
 
           <TouchableOpacity style={[styles.actionCard, styles.actionAriza]} onPress={onAriza} activeOpacity={0.85}>
             <View style={styles.actionIconWrap}>
-              <Text style={styles.actionIcon}>🔧</Text>
+              <ActionIcon name="repair" />
             </View>
             <Text style={styles.actionTitle}>Arıza Bildir</Text>
             <Text style={styles.actionSub}>Yöneticiye ilet</Text>
@@ -127,7 +137,7 @@ export default function HomeScreen({ onLogout, onFuelEntry, onAriza, onSefer, on
 
           <TouchableOpacity style={[styles.actionCard, styles.actionRoute]} onPress={onRouteCreate} activeOpacity={0.85}>
             <View style={styles.actionIconWrap}>
-              <Text style={styles.actionIcon}>🗺️</Text>
+              <ActionIcon name="route" />
             </View>
             <Text style={styles.actionTitle}>Güzergah</Text>
             <Text style={styles.actionSub}>Durak oluştur</Text>
@@ -136,7 +146,7 @@ export default function HomeScreen({ onLogout, onFuelEntry, onAriza, onSefer, on
         </View>
 
         <TouchableOpacity onPress={handleDeleteAccount} style={styles.deleteBtn}>
-          <Text style={styles.deleteBtnText}>Hesabı Sil</Text>
+          <Text style={styles.deleteBtnText}>Mobil erişimi kaldır</Text>
         </TouchableOpacity>
 
       </ScrollView>
@@ -146,7 +156,7 @@ export default function HomeScreen({ onLogout, onFuelEntry, onAriza, onSefer, on
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f1f5f9" },
+  container: { flex: 1, backgroundColor: palette.canvas },
 
   header: {
     backgroundColor: "#1B2437",
@@ -156,8 +166,8 @@ const styles = StyleSheet.create({
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
   headerBrand: { color: "#fff", fontSize: 18, fontWeight: "900", letterSpacing: 1 },
   headerBrandRed: { color: "#DC2626" },
-  logoutBtn: { paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: "#334155", borderRadius: 8 },
-  logoutText: { color: "#94a3b8", fontSize: 13 },
+  logoutBtn: { paddingHorizontal: 14, paddingVertical: 12, minHeight: 44, borderWidth: 1, borderColor: "#475569", borderRadius: 12 },
+  logoutText: { color: palette.onDarkMuted, fontSize: 13 },
 
   scroll: { flex: 1 },
   scrollContent: { padding: 20, gap: 16 },
@@ -172,7 +182,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#1B2437", alignItems: "center", justifyContent: "center",
   },
   avatarText: { color: "#fff", fontWeight: "900", fontSize: 18 },
-  driverGreeting: { color: "#94a3b8", fontSize: 12 },
+  driverGreeting: { color: palette.muted, fontSize: 14 },
   driverName: { color: "#1B2437", fontWeight: "800", fontSize: 18, marginTop: 1 },
   plateBadge: {
     marginTop: 6, alignSelf: "flex-start",
@@ -183,16 +193,16 @@ const styles = StyleSheet.create({
 
   seferHero: {
     backgroundColor: "#DC2626",
-    borderRadius: 24, padding: 32,
+    borderRadius: 20, padding: 24, gap: 8,
     alignItems: "center", justifyContent: "center",
-    shadowColor: "#DC2626", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 16, elevation: 8,
-    minHeight: 180,
+    shadowColor: "#DC2626", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 12, elevation: 3,
+    minHeight: 160,
   },
   seferHeroIcon: { fontSize: 56, marginBottom: 12 },
   seferHeroTitle: { color: "#fff", fontSize: 28, fontWeight: "900", letterSpacing: 0.5 },
   seferHeroSub: { color: "rgba(255,255,255,0.75)", fontSize: 14, marginTop: 6 },
 
-  sectionLabel: { fontSize: 11, fontWeight: "700", color: "#94a3b8", letterSpacing: 1.5, marginBottom: -4 },
+  sectionLabel: { fontSize: 12, fontWeight: "700", color: palette.muted, letterSpacing: 1, marginBottom: -4 },
 
   grid: { flexDirection: "row", gap: 12 },
   actionCard: {
@@ -211,7 +221,7 @@ const styles = StyleSheet.create({
   },
   actionIcon: { fontSize: 26 },
   actionTitle: { fontSize: 13, fontWeight: "800", color: "#1e293b", textAlign: "center" },
-  actionSub:   { fontSize: 11, color: "#94a3b8", marginTop: 3, textAlign: "center" },
+  actionSub:   { fontSize: 13, color: palette.muted, marginTop: 3, textAlign: "center" },
   deleteBtn: { alignItems: "center", paddingVertical: 12, marginTop: 8 },
   deleteBtnText: { color: "#94a3b8", fontSize: 12, textDecorationLine: "underline" },
 });
