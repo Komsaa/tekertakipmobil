@@ -20,10 +20,11 @@ type Props = {
   onFuelEntry: () => void;
   onAriza: () => void;
   onSefer: () => void;
+  onLearning: () => void;
   onRouteCreate: () => void;
 };
 
-export default function HomeScreen({ onLogout, onFuelEntry, onAriza, onSefer, onRouteCreate }: Props) {
+export default function HomeScreen({ onLogout, onFuelEntry, onAriza, onSefer, onRouteCreate, onLearning }: Props) {
   const [driver, setDriver] = useState<Driver | null>(null);
   const { width, fontScale } = useWindowDimensions();
   const compact = width < 420 || fontScale > 1.2;
@@ -108,6 +109,10 @@ export default function HomeScreen({ onLogout, onFuelEntry, onAriza, onSefer, on
           </View>
         </View>
 
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Güzergâha başla, öğrenme modu" style={styles.seferHero} onPress={onLearning}>
+          <Text style={styles.seferHeroTitle}>Güzergâha Başla</Text>
+          <Text style={styles.seferHeroSub}>Öğrenme modu • Duraksız servis kaydı</Text>
+        </TouchableOpacity>
         {/* Sefer Başlat — hero buton */}
         <TouchableOpacity accessibilityRole="button" accessibilityLabel="Sefer başlat, durak yoklama ve navigasyon" style={styles.seferHero} onPress={onSefer} activeOpacity={0.88}>
           <ActionIcon name="bus" color="#fff" size={44} />

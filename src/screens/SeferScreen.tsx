@@ -1,16 +1,19 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet, SafeAreaView,
-  ScrollView, ActivityIndicator, Alert, Vibration, Linking, Platform,
+  ScrollView, ActivityIndicator, Alert, Vibration, Linking, Platform, Modal,
 } from "react-native";
 import * as KeepAwake from "expo-keep-awake";
 import { authFetch } from "../api/client";
 import { startBackgroundLocation, stopBackgroundLocation } from "../lib/locationTask";
+import { passengerContact } from "../lib/passengerContact";
 
 type Passenger = {
   id: string;
   name: string;
   phone: string | null;
+  parentPhone?: string | null;
+  parentName?: string | null;
   attendances: { status: string }[];
 };
 
@@ -25,6 +28,7 @@ type Stop = {
 };
 
 type Route = {
+  type: string;
   id: string;
   name: string;
   stops: Stop[];
@@ -40,6 +44,7 @@ export default function SeferScreen({ onBack }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [stopIndex, setStopIndex] = useState(0);
+  const [contactsOpen, setContactsOpen] = useState(false);
 
   // Sadece "boarded" set — tıklanmayan = otomatik absent (Devam'da sunucuya gönderilir)
   const [boarded, setBoarded] = useState<Set<string>>(new Set());
@@ -56,7 +61,7 @@ export default function SeferScreen({ onBack }: Props) {
       setToday(data.today);
       // Önceden kaydedilmiş "boarded" yoklamaları yükle
       const pre = new Set<string>();
-      for (const stop of data.route.stops) {
+      for (const stop of data.route?.stops ?? []) {
         for (const p of stop.passengers) {
           if (p.attendances[0]?.status === "boarded") pre.add(p.id);
         }
@@ -225,7 +230,7 @@ export default function SeferScreen({ onBack }: Props) {
     );
   }
 
-  if (error || !route) {
+  if (error || !route || route.stops.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorBox}>
@@ -311,6 +316,38 @@ export default function SeferScreen({ onBack }: Props) {
       </View>
 
       {/* ── Yolcu listesi ── */}
+      <TouchableOpacity onPress={() => setContactsOpen(true)} style={{ padding: 14, backgroundColor: "#2563eb", marginHorizontal: 16, borderRadius: 12 }}>
+        <Text style={{ color: "white", textAlign: "center", fontWeight: "bold" }}>
+          {route.type === "personel" ? "Personeller · Telefon listesi" : route.type === "okul" ? "Öğrenciler · Veli telefonları" : "Yolcular · Telefon listesi"}
+        </Text>
+      </TouchableOpacity>
+      <Modal visible={contactsOpen} animationType="slide" onRequestClose={() => setContactsOpen(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: "#f8fafc" }}>
+          <TouchableOpacity onPress={() => setContactsOpen(false)} style={{ padding: 20 }}>
+            <Text style={{ fontSize: 18, fontWeight: "bold" }}>← Sefer ekranına dön</Text>
+          </TouchableOpacity>
+          <Text style={{ paddingHorizontal: 20, color: "#64748b" }}>Tüm duraklar · Aramak için güvenli bir yerde durun.</Text>
+          <ScrollView contentContainerStyle={{ padding: 20 }}>
+            {route.stops.map(s => <View key={s.id} style={{ marginBottom: 20 }}>
+              <Text style={{ fontSize: 17, fontWeight: "bold", marginBottom: 8 }}>{s.name} · {s.estimatedTime}</Text>
+              {s.passengers.length === 0 && <Text>Bu durakta yolcu yok.</Text>}
+              {s.passengers.map(p => {
+                const contact = passengerContact(route.type, p);
+                return <View key={p.id} style={{ padding: 14, backgroundColor: "white", borderRadius: 12, marginBottom: 8 }}>
+                  <Text style={{ fontSize: 17, fontWeight: "600" }}>{p.name}</Text>
+                  {route.type === "okul" && <Text style={{ color: "#64748b" }}>Veli: {p.parentName || "Ad girilmemiş"}</Text>}
+                  <Text style={{ marginVertical: 6 }}>{contact?.phone || "Telefon kaydı yok veya geçersiz"}</Text>
+                  <TouchableOpacity disabled={!contact} accessibilityLabel={`${p.name}: ${contact?.label || "Telefon yok"}`}
+                    style={{ backgroundColor: contact ? "#15803d" : "#94a3b8", padding: 12, borderRadius: 8 }}
+                    onPress={() => { if (contact) void Linking.openURL(contact.uri).catch(() => Alert.alert("Arama açılamadı", "Bu cihazda telefon uygulaması kullanılamıyor.")); }}>
+                    <Text style={{ color: "white", textAlign: "center", fontWeight: "bold" }}>{contact?.label || "Telefon yok"}</Text>
+                  </TouchableOpacity>
+                </View>;
+              })}
+            </View>)}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
       <ScrollView style={styles.list} contentContainerStyle={{ paddingBottom: 12 }}>
         {totalCount === 0 ? (
           <View style={styles.emptyWrap}>

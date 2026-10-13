@@ -2,7 +2,7 @@
   "expo": {
     "name": "TekerTakip",
     "slug": "tekertakip-driver",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -84,7 +84,8 @@
           "cameraPermission": "TekerTakip, yakıt fişi ve arıza fotoğrafı çekmek için kameraya erişim ister."
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-sqlite"
     ],
     "updates": {
       "url": "https://u.expo.dev/a59269a7-9936-4592-8720-e20c0b305ce8",

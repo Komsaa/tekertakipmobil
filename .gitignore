@@ -46,3 +46,4 @@ yarn-error.*
 # Private signing and Play publishing credentials
 /google-service-account.json
 /credentials.json
+dist-pilot-*/
